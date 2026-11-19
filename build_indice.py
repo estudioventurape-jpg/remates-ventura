@@ -55,7 +55,7 @@ def fab_html():
     # Sin botón flotante de WhatsApp (decisión de Víctor, 19/11/2026): la invitación flotante es «Conversa con Robotín».
     # Si existe GRUPO_URL se muestra solo el enlace al grupo.
     g = f'<div class="fab"><a class="g1" href="{GRUPO_URL}" target="_blank" rel="noopener">Únete al grupo de remates</a></div>' if GRUPO_URL else ''
-    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=4" defer></script><!--/fab-->'
+    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=5" defer></script><!--/fab-->'
 paginas = ['index.html', os.path.join('buscar', 'index.html'), os.path.join('alertas', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
 for p in paginas:
     if not os.path.isfile(p): continue

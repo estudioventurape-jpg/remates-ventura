@@ -77,25 +77,36 @@
 
   /* ================= servicios (precios definidos por Víctor, 19/11/2026) ================= */
   var SERV = [
-    { id: 'consulta', n: 'Consulta personalizada', p: 'S/ 69.90', d: 'Conversación con Víctor Ventura sobre el remate que te interesa: riesgos, cargas, posesión y cómo participar.' },
-    { id: 'expediente', n: 'Información detallada del expediente judicial', p: 'S/ 59.90', d: 'Estado y datos relevantes del expediente del que proviene el remate.' },
-    { id: 'partida', n: 'Revisión e informe de la partida electrónica', p: 'S/ 79.90', d: 'Informe escrito de la partida registral del predio: titularidad, cargas y gravámenes inscritos.' }
+    { id: 'consulta', n: 'Consulta personalizada', p: 'S/ 119.90', d: 'Conversación con Víctor Ventura sobre el remate. Incluye el informe del expediente judicial y el de la partida electrónica.', inc: 'Incluye informe del expediente y de la partida' },
+    { id: 'partida', n: 'Revisión e informe de la partida electrónica', p: 'S/ 79.90', d: 'Informe escrito de la partida registral del predio: titularidad, cargas y gravámenes inscritos.' },
+    { id: 'expediente', n: 'Información detallada del expediente judicial', p: 'S/ 59.90', d: 'Estado y datos relevantes del expediente del que proviene el remate.' }
   ];
-  function servWa(sv, n, desc) { return wa('Hola Víctor, quiero el servicio «' + sv.n + '» (' + sv.p + ')' + (n ? ' para el remate N.° ' + n + (desc ? ' (' + desc + ')' : '') + ' de REMAJU.' : '. El remate que me interesa es el N.° ')); }
-  function servHtml(n, desc) {
-    return SERV.map(function (sv) { return '<a class="rv-sv" target="_blank" rel="noopener" href="' + servWa(sv, n, desc) + '"><span><b>' + esc(sv.n) + '</b><small>' + esc(sv.d) + '</small></span><em>' + sv.p + '</em></a>'; }).join('');
+  // x = { n: N.° de remate, exp: expediente judicial, par: partida electrónica, desc: ubicación e inmueble }
+  function servWa(sv, x) {
+    x = x || {};
+    var t = 'Hola Víctor, quiero el servicio «' + sv.n + '» (' + sv.p + ').';
+    if (!x.n) return wa(t + '\nRemate N.°: ');
+    t += '\nRemate N.°: ' + x.n + (x.desc ? ' (' + x.desc + ')' : '');
+    if (sv.id !== 'partida') t += '\nExpediente judicial: ' + (x.exp || 'no figura en la ficha');
+    if (sv.id !== 'expediente') t += '\nPartida electrónica: ' + (x.par || 'no figura en la ficha');
+    return wa(t);
   }
+  function servHtml(x) {
+    return SERV.map(function (sv) { return '<a class="rv-sv" target="_blank" rel="noopener" href="' + servWa(sv, x) + '"><span><b>' + esc(sv.n) + '</b>' + (sv.inc ? '<i>' + esc(sv.inc) + '</i>' : '') + '<small>' + esc(sv.d) + '</small></span><em>' + sv.p + '</em></a>'; }).join('');
+  }
+  function datosRemate(r) { return { n: r[0], exp: r[11], par: r[10], desc: r[1] + ', ' + r[2] }; }
   var SERV_NOTA = 'Precio por cada remate. Se coordina y se paga directamente con Víctor Ventura por WhatsApp. Son servicios de información y orientación: no garantizan el resultado del remate.';
-  var SERV_CSS = '.rv-sv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;border:1px solid #25a244;border-left:4px solid #25a244;background:#fff;color:#0E1216;text-decoration:none;font:14px/1.3 Inter,system-ui,sans-serif}.rv-sv:hover{background:#F0FAF3}.rv-sv b{display:block;font-weight:600;font-size:13.5px}.rv-sv small{display:block;color:#5A6470;font-size:12px;margin-top:2px}.rv-sv em{font-style:normal;font-weight:600;color:#1b7a34;white-space:nowrap;font-size:14.5px}.rv-box{margin-top:auto;padding-top:8px}.rv-box>p{margin:0;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#5A6470;font-weight:600}.rv-box .rv-g{display:block;text-align:center;margin-top:8px;font-size:13px;color:#20397A;font-weight:600}.rv-box .rv-sv small{display:none}.rv-sec{margin-top:36px}.rv-sec h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:26px;border-top:2px solid #0E1216;padding-top:10px;margin:0 0 6px}.rv-sec .rv-gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}.rv-sec .rv-sv{margin:0;flex-direction:column;align-items:flex-start;padding:14px 16px}.rv-sec .rv-sv em{font-size:20px;font-family:Newsreader,Georgia,serif}.rv-sec p.rv-n{font-size:12.5px;color:#5A6470;margin:10px 0 0}.rb-r .rv-sv{border-radius:8px}@media print{.rv-box,.rv-sec{display:none}}';
+  var SERV_CSS = '.rv-sv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;border:1px solid #25a244;border-left:4px solid #25a244;background:#fff;color:#0E1216;text-decoration:none;font:14px/1.3 Inter,system-ui,sans-serif}.rv-sv:hover{background:#F0FAF3}.rv-sv b{display:block;font-weight:600;font-size:13.5px}.rv-sv small{display:block;color:#5A6470;font-size:12px;margin-top:2px}.rv-sv em{font-style:normal;font-weight:600;color:#1b7a34;white-space:nowrap;font-size:14.5px}.rv-sv i{display:block;font-style:normal;font-size:12px;color:#1b7a34;font-weight:600;margin-top:2px}.rv-box{margin-top:auto;padding-top:10px}.rv-dd>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#25a244;color:#fff;font-weight:600;font-size:14px;padding:12px 14px}.rv-dd>summary::-webkit-details-marker{display:none}.rv-dd>summary:after{content:"";width:9px;height:9px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg);margin-top:-4px;transition:transform .2s;flex:none}.rv-dd[open]>summary:after{transform:rotate(-135deg);margin-top:4px}.rv-dd>summary:hover{background:#1f8f3b}.rv-dd small.rv-h{display:block;font-size:11.5px;font-weight:500;opacity:.92}.rv-box .rv-g{display:block;text-align:center;margin-top:8px;font-size:13px;color:#20397A;font-weight:600}.rv-box .rv-sv small{display:none}.rv-sec{margin-top:36px}.rv-sec h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:26px;border-top:2px solid #0E1216;padding-top:10px;margin:0 0 6px}.rv-sec .rv-gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}.rv-sec .rv-sv{margin:0;flex-direction:column;align-items:flex-start;padding:14px 16px}.rv-sec .rv-sv em{font-size:20px;font-family:Newsreader,Georgia,serif}.rv-sec p.rv-n{font-size:12.5px;color:#5A6470;margin:10px 0 0}.rb-r .rv-sv{border-radius:8px}@media print{.rv-box,.rv-sec{display:none}}';
   // Servicios en cada ficha de remate y sección general en la página
   function pagina() {
     var st = document.createElement('style'); st.textContent = SERV_CSS; document.head.appendChild(st);
     [].forEach.call(document.querySelectorAll('article.card[id^="r"]'), function (c) {
       if (c.querySelector('.rv-box')) return;
-      var n = c.id.slice(1), l = c.querySelector('a.wa'), cl = c.querySelector('.cl'), h = c.querySelector('h3');
-      var desc = [cl ? cl.textContent.trim() : '', h ? h.textContent.trim() : ''].filter(Boolean).join(', ');
+      var n = c.id.slice(1), l = c.querySelector('a.wa'), cl = c.querySelector('.cl'), h = c.querySelector('h3'), cx = c.querySelector('.cx');
+      var tx = cx ? cx.textContent : '', par = tx.match(/Partida\s+(\S+)/), exp = tx.match(/Exp\.\s+(\S+)/);
+      var x = { n: n, par: par ? par[1] : '', exp: exp ? exp[1] : '', desc: [cl ? cl.textContent.trim() : '', h ? h.textContent.trim() : ''].filter(Boolean).join(', ') };
       var b = document.createElement('div'); b.className = 'rv-box';
-      b.innerHTML = '<p>Servicios para el remate ' + esc(n) + '</p>' + servHtml(n, desc);
+      b.innerHTML = '<details class="rv-dd"><summary><span>Servicios para el remate ' + esc(n) + '<small class="rv-h">Consulta, partida o expediente · desde S/ 59.90</small></span></summary>' + servHtml(x) + '</details>';
       if (l) { l.className = 'rv-g'; l.textContent = 'Otra consulta sobre el remate ' + n; l.target = '_blank'; l.rel = 'noopener'; c.insertBefore(b, l); b.appendChild(l); } else c.appendChild(b);
     });
     var main = document.querySelector('main');
@@ -478,7 +489,7 @@
   ];
   function servicios(n) {
     var r = n ? D.remates.filter(function (x) { return x[0] === n; })[0] : null;
-    return (r ? 'Para el remate <b>N.° ' + esc(n) + '</b> (' + esc(r[1]) + ', ' + esc(r[2]) + ') Víctor ofrece estos servicios. Toca el que quieras y se abre WhatsApp con el pedido ya escrito:' : 'Víctor ofrece estos servicios para cualquier remate publicado. Toca el que quieras y se abre WhatsApp; solo indica el número del remate:') + servHtml(r ? n : null, r ? r[1] + ', ' + r[2] : '') + '<small style="color:#5A6470">' + SERV_NOTA + '</small>';
+    return (r ? 'Para el remate <b>N.° ' + esc(n) + '</b> (' + esc(r[1]) + ', ' + esc(r[2]) + ') Víctor ofrece estos servicios. Toca el que quieras y se abre WhatsApp con el pedido ya escrito:' : 'Víctor ofrece estos servicios para cualquier remate publicado. Toca el que quieras y se abre WhatsApp; solo indica el número del remate:') + servHtml(r ? datosRemate(r) : null) + '<small style="color:#5A6470">' + SERV_NOTA + '</small>';
   }
   function wasolicitud(n) {
     var t = 'Hola Víctor, escribo desde Robotín (venturalegal.pe/remates).';
