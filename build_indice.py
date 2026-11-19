@@ -105,3 +105,21 @@ for p in ['index.html'] + [os.path.join(e['fecha'], 'index.html') for e in edici
     if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
     if '<!--rb-hero-->' in s2: n_hero += 1
 print('portada de Robotín (sin tabla resumen) en', n_hero, 'páginas')
+
+# Imagen al compartir el enlace (WhatsApp, Facebook, etc.): Robotín (decisión de Víctor, 19/11/2026).
+# La imagen anterior (remates-del-dia.png, 5.6 MB) era demasiado pesada y WhatsApp no la mostraba.
+OG_IMG = 'https://venturalegal.pe/remates/robotin/robotin-og.jpg?v=1'
+OG = ('<!--og-->' + f'<meta property="og:image" content="{OG_IMG}"><meta property="og:image:secure_url" content="{OG_IMG}">'
+      '<meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">'
+      '<meta property="og:image:alt" content="Robotín, asistente de remates judiciales de Ventura Legal"><meta property="og:site_name" content="Ventura Legal · Remates judiciales">'
+      f'<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="{OG_IMG}">' + '<!--/og-->')
+n_og = 0
+for p in paginas:
+    if not os.path.isfile(p): continue
+    s = open(p, encoding='utf-8').read()
+    s2 = re.sub(r'<!--og-->.*?<!--/og-->\n?', '', s, flags=re.S)
+    s2 = re.sub(r'<meta property="og:image[^>]*>\n?', '', s2)
+    s2 = s2.replace('</head>', OG + '\n</head>', 1) if '</head>' in s2 else s2.replace('<style>', OG + '\n<style>', 1)
+    if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
+    if '<!--og-->' in s2: n_og += 1
+print('imagen para compartir (Robotín) en', n_og, 'páginas')
