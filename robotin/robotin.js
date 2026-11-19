@@ -75,6 +75,38 @@
   function clon(o) { return JSON.parse(JSON.stringify(o)); }
   var PL = { casa: 'casas', departamento: 'departamentos', terreno: 'terrenos', local: 'locales comerciales', estacionamiento: 'estacionamientos', otro: 'otros inmuebles' };
 
+  /* ================= servicios (precios definidos por Víctor, 19/11/2026) ================= */
+  var SERV = [
+    { id: 'consulta', n: 'Consulta personalizada', p: 'S/ 69.90', d: 'Conversación con Víctor Ventura sobre el remate que te interesa: riesgos, cargas, posesión y cómo participar.' },
+    { id: 'expediente', n: 'Información detallada del expediente judicial', p: 'S/ 59.90', d: 'Estado y datos relevantes del expediente del que proviene el remate.' },
+    { id: 'partida', n: 'Revisión e informe de la partida electrónica', p: 'S/ 79.90', d: 'Informe escrito de la partida registral del predio: titularidad, cargas y gravámenes inscritos.' }
+  ];
+  function servWa(sv, n, desc) { return wa('Hola Víctor, quiero el servicio «' + sv.n + '» (' + sv.p + ')' + (n ? ' para el remate N.° ' + n + (desc ? ' (' + desc + ')' : '') + ' de REMAJU.' : '. El remate que me interesa es el N.° ')); }
+  function servHtml(n, desc) {
+    return SERV.map(function (sv) { return '<a class="rv-sv" target="_blank" rel="noopener" href="' + servWa(sv, n, desc) + '"><span><b>' + esc(sv.n) + '</b><small>' + esc(sv.d) + '</small></span><em>' + sv.p + '</em></a>'; }).join('');
+  }
+  var SERV_NOTA = 'Precio por cada remate. Se coordina y se paga directamente con Víctor Ventura por WhatsApp. Son servicios de información y orientación: no garantizan el resultado del remate.';
+  var SERV_CSS = '.rv-sv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;border:1px solid #25a244;border-left:4px solid #25a244;background:#fff;color:#0E1216;text-decoration:none;font:14px/1.3 Inter,system-ui,sans-serif}.rv-sv:hover{background:#F0FAF3}.rv-sv b{display:block;font-weight:600;font-size:13.5px}.rv-sv small{display:block;color:#5A6470;font-size:12px;margin-top:2px}.rv-sv em{font-style:normal;font-weight:600;color:#1b7a34;white-space:nowrap;font-size:14.5px}.rv-box{margin-top:auto;padding-top:8px}.rv-box>p{margin:0;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#5A6470;font-weight:600}.rv-box .rv-g{display:block;text-align:center;margin-top:8px;font-size:13px;color:#20397A;font-weight:600}.rv-box .rv-sv small{display:none}.rv-sec{margin-top:36px}.rv-sec h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:26px;border-top:2px solid #0E1216;padding-top:10px;margin:0 0 6px}.rv-sec .rv-gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}.rv-sec .rv-sv{margin:0;flex-direction:column;align-items:flex-start;padding:14px 16px}.rv-sec .rv-sv em{font-size:20px;font-family:Newsreader,Georgia,serif}.rv-sec p.rv-n{font-size:12.5px;color:#5A6470;margin:10px 0 0}.rb-r .rv-sv{border-radius:8px}@media print{.rv-box,.rv-sec{display:none}}';
+  // Servicios en cada ficha de remate y sección general en la página
+  function pagina() {
+    var st = document.createElement('style'); st.textContent = SERV_CSS; document.head.appendChild(st);
+    [].forEach.call(document.querySelectorAll('article.card[id^="r"]'), function (c) {
+      if (c.querySelector('.rv-box')) return;
+      var n = c.id.slice(1), l = c.querySelector('a.wa'), cl = c.querySelector('.cl'), h = c.querySelector('h3');
+      var desc = [cl ? cl.textContent.trim() : '', h ? h.textContent.trim() : ''].filter(Boolean).join(', ');
+      var b = document.createElement('div'); b.className = 'rv-box';
+      b.innerHTML = '<p>Servicios para el remate ' + esc(n) + '</p>' + servHtml(n, desc);
+      if (l) { l.className = 'rv-g'; l.textContent = 'Otra consulta sobre el remate ' + n; l.target = '_blank'; l.rel = 'noopener'; c.insertBefore(b, l); b.appendChild(l); } else c.appendChild(b);
+    });
+    var main = document.querySelector('main');
+    if (main && !document.querySelector('.rv-sec')) {
+      var sec = document.createElement('section'); sec.className = 'rv-sec'; sec.id = 'servicios';
+      var hayFichas = !!document.querySelector('article.card[id^="r"]');
+      sec.innerHTML = '<h2>Servicios de apoyo para tu remate</h2><p class="note" style="margin:0 0 12px;color:#444C55;font-size:14px">' + (hayFichas ? 'Elige el servicio dentro de la ficha del remate que te interesa, o pídelo aquí e indícanos el número de remate.' : 'Pide el servicio e indícanos el número del remate que te interesa.') + '</p><div class="rv-gr">' + servHtml() + '</div><p class="rv-n">' + SERV_NOTA + '</p>';
+      var w = main.querySelector('.w') || main; w.appendChild(sec);
+    }
+  }
+
   /* ================= datos ================= */
   function geo(r) {
     var parts = r[1].split(/[,()]/).map(limpio).filter(Boolean), dep = null, i;
@@ -295,7 +327,7 @@
     p.querySelector('form').addEventListener('submit', function (e) { e.preventDefault(); var v = els.i.value.trim(); if (v) { els.i.value = ''; enviar(v); } });
     els.ch.addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) enviar(b.getAttribute('data-q'), b.textContent); });
     // al abrir una ficha, el chat se minimiza para dejar ver la página; la conversación se conserva
-    els.m.addEventListener('click', function (e) { var a = e.target.closest('a'); if (a && a.getAttribute('href') && a.getAttribute('href').indexOf(BASE) === 0 && !a.target) cerrar(); });
+    els.m.addEventListener('click', function (e) { var a = e.target.closest('a'); if (a && a.getAttribute('data-rb')) { e.preventDefault(); enviar(a.getAttribute('data-rb'), 'Servicios para el remate ' + a.getAttribute('data-rb').split(' ')[1]); return; } if (a && a.getAttribute('href') && a.getAttribute('href').indexOf(BASE) === 0 && !a.target) cerrar(); });
     function pos() { var fab = document.querySelector('.fab'); els.l.style.bottom = (fab && fab.offsetHeight ? fab.offsetHeight + 22 : 14) + 'px'; }
     pos(); window.addEventListener('resize', pos);
     // memoria de la conversación mientras dure la visita (se conserva al abrir una ficha)
@@ -344,7 +376,7 @@
   /* ================= respuestas ================= */
   function item(r) {
     var a = area(r), c = (r[13] || '').trim(), sin = /ninguna declarada/i.test(c);
-    return '<div class="rb-it"><div><b>N.° ' + esc(r[0]) + '</b> · ' + esc(r[1]) + '</div><div>' + esc(r[2]) + (a && r[2].indexOf('m²') < 0 ? ' · ' + a.toLocaleString('en-US') + ' m²' : '') + '</div><div class="t">Base ' + esc(money(r)) + '</div><div style="color:#5A6470">' + (sin ? 'Sin cargas declaradas' : 'Con cargas: ' + esc(c.length > 90 ? c.slice(0, 88) + '…' : c)) + ' · edición ' + fdate(r[4]) + '</div><div class="z"><a href="' + link(r) + '">Ver ficha</a><a target="_blank" rel="noopener" href="' + wa('Hola Víctor, quiero apoyo con el remate N.° ' + r[0] + ' (' + r[1] + ', ' + r[2] + ', base ' + money(r) + ') de REMAJU. Vi la información en venturalegal.pe/remates') + '">Consultar con Víctor</a></div></div>';
+    return '<div class="rb-it"><div><b>N.° ' + esc(r[0]) + '</b> · ' + esc(r[1]) + '</div><div>' + esc(r[2]) + (a && r[2].indexOf('m²') < 0 ? ' · ' + a.toLocaleString('en-US') + ' m²' : '') + '</div><div class="t">Base ' + esc(money(r)) + '</div><div style="color:#5A6470">' + (sin ? 'Sin cargas declaradas' : 'Con cargas: ' + esc(c.length > 90 ? c.slice(0, 88) + '…' : c)) + ' · edición ' + fdate(r[4]) + '</div><div class="z"><a href="' + link(r) + '">Ver ficha</a><a href="#" data-rb="servicios ' + esc(r[0]) + '">Servicios y consulta</a></div></div>';
   }
   var PIE = '<small style="color:#5A6470">Información referencial de REMAJU. Verifica la partida en SUNARP, la posesión y las bases antes de ofertar.</small>';
   function mostrar(list, desde, extra) {
@@ -420,7 +452,7 @@
     var r = D.remates.filter(function (x) { return x[0] === n; })[0];
     if (!r) { say('No tengo el remate N.° ' + esc(n) + ' en las ediciones publicadas (desde el 6 de noviembre de 2026). Prueba con el <a href="' + BASE + 'buscar/">buscador</a> o descríbeme lo que buscas.', 400, CH_INICIO); return; }
     var h = item(r) + '<div style="font-size:13px">Tasación: <b>' + esc(r[6]) + '</b><br>Base (2/3): <b>' + esc(r[3]) + '</b><br>Oblaje: ' + esc(r[8]) + ' · Arancel: ' + esc(r[9]) + '<br>Partida: ' + esc(r[10]) + '</div><small style="color:#5A6470">Información referencial. Confirma datos y bases en REMAJU.</small>';
-    revisarYResponder('Voy a buscar el remate <b>N.° ' + esc(n) + '</b> en mi base…', function () { return ['Esto tengo del remate <b>N.° ' + esc(r[0]) + '</b>:' + h, [['Hablar con Víctor sobre este remate', 'asesoria ' + r[0]], ['Revisión de título y cargas', 'titulo ' + r[0]], ['Nueva búsqueda', 'empezar de nuevo']]]; });
+    revisarYResponder('Voy a buscar el remate <b>N.° ' + esc(n) + '</b> en mi base…', function () { return ['Esto tengo del remate <b>N.° ' + esc(r[0]) + '</b>:' + h, [['Servicios para este remate', 'servicios ' + r[0]], ['Otra consulta a Víctor', 'asesoria ' + r[0]], ['Nueva búsqueda', 'empezar de nuevo']]]; });
   }
   function cobertura() {
     var c = {}, lm = 0, ca = 0;
@@ -429,6 +461,7 @@
     return ['Ahora mismo tengo remates en: <b>Lima Metropolitana (' + lm + ')</b>' + (ca ? ', <b>Callao (' + ca + ')</b>' : '') + ' y en provincias: ' + esc(t) + '.<br><br>Dime un distrito, ciudad o región y te muestro lo que hay; si no hay nada exacto, te enseño lo más cercano.', [['Lima Moderna', 'propiedades en lima moderna'], ['Lima Norte', 'propiedades en lima norte'], ['Lima Este', 'propiedades en lima este'], ['Lima Sur', 'propiedades en lima sur'], ['Norte del Perú', 'propiedades en el norte del peru'], ['Sur del Perú', 'propiedades en el sur del peru'], ['Selva', 'propiedades en la selva']]];
   }
   var FAQ = [
+    [/servicio|cuanto cuesta|cuanto cobra|precio de|tarifa|honorario|consulta personalizada|informe|expediente|estudio de titulo|revision de (la )?partida|asesor|abogado|cotiz/, function () { return [servicios(), [['Hablar con Víctor', 'asesoria'], ['Buscar remates', 'empezar de nuevo']]]; }],
     [/donde hay|que (distritos|ciudades|regiones|zonas|lugares)|en que (lugares|ciudades|zonas|distritos)|cobertura|de donde tienes/, cobertura],
     [/como funciona|que es (un )?remate|remate judicial|como (se )?participa|como participo|como ofertar|quiero participar|pasos/, function () { return ['Un <b>remate judicial</b> es la venta pública de un bien embargado o hipotecado, ordenada por un juez para cobrar una deuda. En REMAJU (Poder Judicial) cada remate publica una <b>tasación</b>, una <b>base</b> (en estos remates, 2/3 de la tasación), el periodo de <b>inscripción</b> y las fechas de <b>ofertas</b>. Para ofertar normalmente debes inscribirte dentro del plazo y consignar el <b>oblaje</b> (depósito) y el <b>arancel</b>; ambos montos están en la ficha de cada remate y en las bases.<br><br>Antes de ofertar conviene revisar la <b>partida en SUNARP</b> (cargas), la <b>posesión</b> del inmueble y las bases del remate. ¿Te muestro opciones o prefieres que Víctor te oriente?', [['Buscar remates', 'empezar de nuevo'], ['Cargas y SUNARP', 'que son las cargas'], ['Hablar con Víctor', 'asesoria']]]; }],
     [/oblaje|arancel|deposito|garantia|cuanto (hay que )?(pagar|depositar|consignar)/, function () { return ['El <b>oblaje</b> es el depósito que consignas para participar y el <b>arancel</b> es el pago judicial por postor. Sus montos figuran en la ficha de cada remate (en las fichas publicadas aquí el oblaje equivale al 10 % de la tasación, pero confirma siempre en las bases de REMAJU). Dame el N.° de un remate y te muestro sus montos, por ejemplo <i>«remate 26109»</i>.', [['Ver remates recientes', 'lo mas reciente'], ['Hablar con Víctor', 'asesoria']]]; }],
@@ -441,6 +474,10 @@
     [/(^|\s)(hola|buenas|buenos dias|buenas tardes|buenas noches|hey|que tal)(\s|$)/, function () { return ['¡Hola! Cuéntame qué buscas y dónde: por ejemplo, <i>«departamento en Miraflores»</i> o <i>«terreno en Piura hasta 80 mil soles»</i>.', CH_INICIO]; }],
     [/ayuda|que puedes|que haces|que sabes|opciones|quien eres/, function () { return ['Soy un asistente automático. Puedo: buscar remates por <b>tipo, distrito, ciudad o región, precio y área</b> (y si no hay nada exacto, mostrarte lo más cercano); darte la ficha de un remate con su <b>N.°</b>; explicarte cómo funciona un remate; y derivarte con Víctor para revisión de título o asesoría.', CH_INICIO]; }]
   ];
+  function servicios(n) {
+    var r = n ? D.remates.filter(function (x) { return x[0] === n; })[0] : null;
+    return (r ? 'Para el remate <b>N.° ' + esc(n) + '</b> (' + esc(r[1]) + ', ' + esc(r[2]) + ') Víctor ofrece estos servicios. Toca el que quieras y se abre WhatsApp con el pedido ya escrito:' : 'Víctor ofrece estos servicios para cualquier remate publicado. Toca el que quieras y se abre WhatsApp; solo indica el número del remate:') + servHtml(r ? n : null, r ? r[1] + ', ' + r[2] : '') + '<small style="color:#5A6470">' + SERV_NOTA + '</small>';
+  }
   function wasolicitud(n) {
     var t = 'Hola Víctor, escribo desde Robotín (venturalegal.pe/remates).';
     if (n) { var r = D.remates.filter(function (x) { return x[0] === n; })[0]; t += ' Quiero apoyo con el remate N.° ' + n + (r ? ' (' + r[1] + ', ' + r[2] + ', base ' + money(r) + ')' : '') + '.'; }
@@ -459,6 +496,8 @@
       if (F.mon) q.push('mon=' + encodeURIComponent(F.mon)); if (F.min != null) q.push('min=' + Math.round(F.min)); if (F.max != null) q.push('max=' + Math.round(F.max)); if (F.area != null) q.push('area=' + F.area); if (F.tipo && F.tipo.length) q.push('tp=' + F.tipo[0]); if (F.sc) q.push('sc=1');
       guardar(); location.href = BASE + 'alertas/' + (q.length ? '?' + q.join('&') : ''); return;
     }
+    var ms = m.match(/^servicios\s*(\d{5})?$/);
+    if (ms) { say(servicios(ms[1]), 450, ms[1] ? [['Ver ficha del ' + ms[1], 'remate ' + ms[1]], ['Seguir buscando', 'empezar de nuevo']] : [['Buscar remates', 'empezar de nuevo']]); return; }
     var mw = m.match(/^(asesoria|titulo)\s*(\d{5})?$/);
     if (mw) { say('Te abro WhatsApp con un mensaje ya escrito para Víctor' + (mw[2] ? ' sobre el remate N.° ' + esc(mw[2]) : '') + '. Solo tienes que enviarlo.<br><a target="_blank" rel="noopener" href="' + wasolicitud(mw[2]) + '"><b>Abrir WhatsApp →</b></a><br><small style="color:#5A6470">Atiende Víctor Ventura personalmente; las respuestas de Robotín no constituyen asesoría legal.</small>', 400, [['Seguir buscando', 'empezar de nuevo']]); return; }
     var o = parse(txt);
@@ -486,6 +525,6 @@
     responderBusqueda(F, nota.trim());
   }
 
-  function iniciar() { if (document.querySelector('.rb-l')) return; build(); }
+  function iniciar() { if (document.querySelector('.rb-l')) return; try { pagina(); } catch (e) { } build(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 })();
