@@ -106,7 +106,7 @@
       var tx = cx ? cx.textContent : '', par = tx.match(/Partida\s+(\S+)/), exp = tx.match(/Exp\.\s+(\S+)/);
       var x = { n: n, par: par ? par[1] : '', exp: exp ? exp[1] : '', desc: [cl ? cl.textContent.trim() : '', h ? h.textContent.trim() : ''].filter(Boolean).join(', ') };
       var b = document.createElement('div'); b.className = 'rv-box';
-      b.innerHTML = '<details class="rv-dd"><summary><span>Servicios para el remate ' + esc(n) + '<small class="rv-h">Consulta, partida o expediente · desde S/ 59.90</small></span></summary>' + servHtml(x) + '</details>';
+      b.innerHTML = '<details class="rv-dd"><summary><span>Servicios para el remate ' + esc(n) + '</span></summary>' + servHtml(x) + '</details>';
       if (l) { l.className = 'rv-g'; l.textContent = 'Otra consulta sobre el remate ' + n; l.target = '_blank'; l.rel = 'noopener'; c.insertBefore(b, l); b.appendChild(l); } else c.appendChild(b);
     });
     var main = document.querySelector('main');
