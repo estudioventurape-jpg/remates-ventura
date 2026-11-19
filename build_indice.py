@@ -52,8 +52,10 @@ for p in ['index.html'] + [os.path.join(e['fecha'], 'index.html') for e in edici
 # botones flotantes de WhatsApp (se regeneran en cada ejecución entre los marcadores)
 FAB_CSS = '<style>.fab{position:fixed;right:14px;bottom:14px;z-index:50;display:flex;flex-direction:column;gap:8px;align-items:flex-end}.fab a{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:30px;color:#fff;font:600 14px Inter,system-ui,sans-serif;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28)}.fab .g1{background:#2A4A9C}.fab .g2{background:#25a244}@media(max-width:520px){.fab a{padding:11px 14px;font-size:13px}}@media print{.fab{display:none}}</style>'
 def fab_html():
-    g = f'<a class="g1" href="{GRUPO_URL}" target="_blank" rel="noopener">Únete al grupo de remates</a>' if GRUPO_URL else ''
-    return f'<!--fab-->{FAB_CSS}<div class="fab">{g}<a class="g2" href="{WA_DIRECTO}" target="_blank" rel="noopener">Escríbeme por WhatsApp</a></div><script src="/remates/robotin/robotin.js" defer></script><!--/fab-->'
+    # Sin botón flotante de WhatsApp (decisión de Víctor, 19/11/2026): la invitación flotante es «Conversa con Robotín».
+    # Si existe GRUPO_URL se muestra solo el enlace al grupo.
+    g = f'<div class="fab"><a class="g1" href="{GRUPO_URL}" target="_blank" rel="noopener">Únete al grupo de remates</a></div>' if GRUPO_URL else ''
+    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=2" defer></script><!--/fab-->'
 paginas = ['index.html', os.path.join('buscar', 'index.html'), os.path.join('alertas', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
 for p in paginas:
     if not os.path.isfile(p): continue
