@@ -55,7 +55,7 @@ def fab_html():
     # Sin botón flotante de WhatsApp (decisión de Víctor, 19/11/2026): la invitación flotante es «Conversa con Robotín».
     # Si existe GRUPO_URL se muestra solo el enlace al grupo.
     g = f'<div class="fab"><a class="g1" href="{GRUPO_URL}" target="_blank" rel="noopener">Únete al grupo de remates</a></div>' if GRUPO_URL else ''
-    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=8" defer></script><!--/fab-->'
+    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=9" defer></script><!--/fab-->'
 paginas = ['index.html', os.path.join('buscar', 'index.html'), os.path.join('alertas', 'index.html'), os.path.join('sunat', 'index.html'), os.path.join('indecopi', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
 for p in paginas:
     if not os.path.isfile(p): continue
@@ -68,7 +68,7 @@ for p in paginas:
 print('botones flotantes en', len(paginas), 'páginas')
 
 # botón «Crear una alerta» junto a «Ediciones anteriores y buscador»
-BTN_AL = '<a class="btn" href="/remates/alertas/">Crear una alerta</a>'
+BTN_AL = '<a class="btn al" href="/remates/alertas/">Crear una alerta</a>'
 for p in ['index.html', os.path.join('buscar', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]:
     s = open(p, encoding='utf-8').read()
     if '/remates/alertas/' in s: continue
@@ -143,3 +143,38 @@ for p in paginas:
     if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
     if '<!--fts-->' in s2: n_t += 1
 print('pestañas de fuentes en', n_t, 'páginas')
+
+# MARCA «Ventura Legal» (decisión de Víctor, 19/11/2026: uniformizar la marca; ya no «Estudio Ventura abogados»).
+# Se aplica a TODAS las páginas en cada ejecución, aunque la plantilla diaria traiga la marca anterior:
+#  - cabecera: logo + «Ventura Legal · Remates», con enlace a la página principal de Ventura Legal;
+#  - botón «Ediciones anteriores y buscador» arriba a la derecha (se quita del grupo de botones para no distraer de «Descargar PDF»);
+#  - botón «Crear una alerta» destacado (es el servicio principal de la página);
+#  - pie: solo «Ventura Legal» (sin el nombre de Víctor), conservando dirección, correo y teléfono.
+MARCA_CSS = ('<!--marca--><style>header.top .w{gap:12px}a.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#0E1216;font-family:Newsreader,Georgia,serif;font-size:21px;font-weight:500;min-width:0}'
+  'a.brand img{width:38px;height:38px;flex:none}a.brand span{white-space:nowrap}a.brand small{font-family:Inter,sans-serif;font-size:11px;letter-spacing:1.6px;color:#2A4A9C;text-transform:uppercase;font-weight:600;margin-left:2px;padding-left:10px;border-left:1px solid #C3C9D4}'
+  'a.brand:hover span{text-decoration:underline}.hbtn{flex:none;text-decoration:none;font:600 13px Inter,system-ui,sans-serif;color:#20397A;border:1px solid #C3C9D4;padding:8px 14px;border-radius:20px;background:#fff;white-space:nowrap}.hbtn:hover{background:#F2F5FB}.hbtn i{font-style:normal}'
+  '@media(max-width:600px){a.brand{font-size:18px}a.brand img{width:32px;height:32px}.hbtn{padding:7px 11px;font-size:12px}.hbtn i{display:none}}'
+  '.btn.al{position:relative;overflow:hidden;background:linear-gradient(135deg,#FF9F1C,#FF7A00);border-color:#FF8A0A;color:#14213D;font-weight:700;padding-left:44px;box-shadow:0 6px 16px rgba(255,138,10,.38);border-radius:4px}'
+  '.btn.al:before{content:"";position:absolute;left:16px;top:50%;width:18px;height:18px;margin-top:-9px;background:#14213D;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.8V3.5a1.5 1.5 0 0 0-3 0v.7A7 7 0 0 0 5 11v5l-2 2v1h18v-1z%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.8V3.5a1.5 1.5 0 0 0-3 0v.7A7 7 0 0 0 5 11v5l-2 2v1h18v-1z%27/%3E%3C/svg%3E") center/contain no-repeat;animation:alb 2.6s ease-in-out infinite;transform-origin:50% 10%}'
+  '@keyframes alb{0%,70%,100%{transform:rotate(0)}76%{transform:rotate(-16deg)}82%{transform:rotate(14deg)}88%{transform:rotate(-9deg)}94%{transform:rotate(6deg)}}'
+  '.btn.al:after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:als 3.2s ease-in-out infinite}@keyframes als{0%,55%{left:-60%}100%{left:130%}}'
+  '.btn.al em{font-style:normal;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;background:#14213D;color:#fff;padding:2px 7px;border-radius:10px;margin-left:8px;vertical-align:1px}.btn.al:hover{filter:brightness(1.06)}'
+  '@media(prefers-reduced-motion:reduce){.btn.al:before,.btn.al:after{animation:none}}@media print{.hbtn{display:none}}</style><!--/marca-->')
+HEADER_VL = ('<header class="top"><div class="w"><a class="brand" href="https://venturalegal.pe/" title="Ir a la página principal de Ventura Legal">'
+  '<img src="/remates/logo-ventura-legal.png" alt="" width="38" height="38"><span>Ventura Legal</span><small>Remates</small></a>'
+  '<a class="hbtn" href="/remates/buscar/">Ediciones anteriores<i> y buscador</i></a></div></header>')
+AL_BTN = '<a class="btn al" href="/remates/alertas/">Crear una alerta<em>gratis</em></a>'
+n_m = 0
+for p in paginas:
+    if not os.path.isfile(p): continue
+    s = open(p, encoding='utf-8').read()
+    s2 = re.sub(r'<!--marca-->.*?<!--/marca-->\n?', '', s, flags=re.S)
+    s2 = re.sub(r'<header class="top">.*?</header>', lambda m: HEADER_VL, s2, count=1, flags=re.S)
+    s2 = s2.replace('</head>', MARCA_CSS + '\n</head>', 1)
+    s2 = re.sub(r'<a class="btn[^"]*" href="/remates/buscar/">Ediciones anteriores y buscador</a>', '', s2)
+    s2 = re.sub(r'<a class="btn[^"]*" href="/remates/alertas/">Crear una alerta(?:<em>gratis</em>)?</a>', lambda m: AL_BTN, s2)
+    s2 = s2.replace('<div class="nm">Víctor Ventura</div><div>Director – Ventura Legal</div>', '<div class="nm">Ventura Legal</div>')
+    s2 = s2.replace('· Estudio Ventura</title>', '· Ventura Legal</title>').replace('Estudio Ventura <i>abogados</i>', 'Ventura Legal').replace('Estudio Ventura Abogados', 'Ventura Legal').replace('Estudio Ventura', 'Ventura Legal')
+    if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
+    n_m += 1
+print('marca Ventura Legal (cabecera con logo, pie y botón de alertas) en', n_m, 'páginas')

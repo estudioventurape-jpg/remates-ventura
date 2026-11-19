@@ -34,7 +34,7 @@ def pagina(titulo, desc, cuerpo, script=''):
 {FOOTER}
 {script}
 </body></html>'''
-CTA = '<div class="cta"><a class="btn p" href="/remates/">Remates del Poder Judicial</a><a class="btn" href="/remates/buscar/">Ediciones anteriores y buscador</a><a class="btn" href="/remates/alertas/">Crear una alerta</a></div>'
+CTA = '<div class="cta"><a class="btn p" href="/remates/">Remates del Poder Judicial</a><a class="btn al" href="/remates/alertas/">Crear una alerta</a></div>'
 WA = 'https://wa.me/51927995630?text='
 from urllib.parse import quote
 

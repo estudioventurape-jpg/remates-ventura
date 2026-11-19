@@ -433,7 +433,7 @@
     var u = D.ediciones.filter(function (e) { return e.fecha === D.ult; })[0];
     var ot = D.sunat.length ? ', <b>' + D.sunat.length + ' inmuebles en remate de SUNAT</b>' : '';
     ot += D.inde.length ? ' y <b>' + D.inde.length + ' de INDECOPI</b>' : ' y reviso los catálogos de INDECOPI';
-    say('¡Hola! Soy <b>Robotín</b>, el asistente automático de remates de Víctor Ventura. Conozco todo lo publicado en esta página: <b>' + D.remates.length + ' remates del Poder Judicial (REMAJU)</b>' + ot + '. La última edición judicial es del <a href="' + BASE + D.ult + '/">' + fdate(D.ult) + '</a>' + (u ? ' (' + esc(u.resumen.split('·')[0].trim()) + ')' : '') + '.<br><br>Cuéntame con tus palabras qué buscas y dónde, por ejemplo <i>«busco propiedades en Lima»</i> o <i>«una casa en Piura hasta 300 mil soles»</i>. Te mostraré lo que haya en cada entidad, por separado; y si no hay nada exacto, lo más cercano.', 600, CH_INICIO);
+    say('¡Hola! Soy <b>Robotín</b>, el asistente automático de <b>Ventura Legal</b> para remates. Conozco todo lo publicado en esta página: <b>' + D.remates.length + ' remates del Poder Judicial (REMAJU)</b>' + ot + '. La última edición judicial es del <a href="' + BASE + D.ult + '/">' + fdate(D.ult) + '</a>' + (u ? ' (' + esc(u.resumen.split('·')[0].trim()) + ')' : '') + '.<br><br>Cuéntame con tus palabras qué buscas y dónde, por ejemplo <i>«busco propiedades en Lima»</i> o <i>«una casa en Piura hasta 300 mil soles»</i>. Te mostraré lo que haya en cada entidad, por separado; y si no hay nada exacto, lo más cercano.', 600, CH_INICIO);
   }
 
   /* ================= respuestas ================= */
