@@ -39,7 +39,9 @@ $cuerpo = "Nueva alerta de remates registrada en venturalegal.pe/remates/alertas
   . "\nSolo sin cargas: " . ($a['sc'] ? 'sí' : 'no') . "\nFrecuencia: " . ($a['semanal'] ? 'semanal (viernes)' : 'cada día con coincidencias')
   . "\nAutorización de datos (Ley N.° 29733): sí\n\n@@ALERTA_INI@@" . $json . "@@ALERTA_FIN@@\n";
 $asunto = '=?UTF-8?B?' . base64_encode('[ALERTA-REMATES] Nueva alerta: ' . $ub) . '?=';
-$cab = "From: Alertas de remates <alertas@venturalegal.pe>\r\nReply-To: " . $a['email'] . "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\nX-Alerta-Remates: 1";
-$ok = @mail('victor@venturalegal.pe', $asunto, $cuerpo, $cab, '-falertas@venturalegal.pe');
+// Sin cabecera From del dominio: el servidor de Hostinger no está autorizado (SPF/DMARC) a enviar como @venturalegal.pe
+// y Google lo descartaría; se usa el remitente propio del servidor.
+$cab = "Reply-To: " . $a['email'] . "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\nX-Alerta-Remates: 1";
+$ok = @mail('victor@venturalegal.pe', $asunto, $cuerpo, $cab);
 if (!$ok) fin(false, 'No pudimos registrar tu alerta en este momento. Envíala por WhatsApp con el botón de abajo.', 500);
 fin(true, 'Alerta registrada');
