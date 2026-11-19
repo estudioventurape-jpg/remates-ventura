@@ -55,7 +55,7 @@ def fab_html():
     # Sin botón flotante de WhatsApp (decisión de Víctor, 19/11/2026): la invitación flotante es «Conversa con Robotín».
     # Si existe GRUPO_URL se muestra solo el enlace al grupo.
     g = f'<div class="fab"><a class="g1" href="{GRUPO_URL}" target="_blank" rel="noopener">Únete al grupo de remates</a></div>' if GRUPO_URL else ''
-    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=3" defer></script><!--/fab-->'
+    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=4" defer></script><!--/fab-->'
 paginas = ['index.html', os.path.join('buscar', 'index.html'), os.path.join('alertas', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
 for p in paginas:
     if not os.path.isfile(p): continue
@@ -75,3 +75,33 @@ for p in ['index.html', os.path.join('buscar', 'index.html')] + [os.path.join(e[
     s2 = re.sub(r'(<div class="cta">.*?)(</div>)', lambda m: m.group(1) + BTN_AL + m.group(2), s, count=1, flags=re.S)
     if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
 print('botón de alertas listo')
+
+# Portada con Robotín en lugar del «Resumen» (decisión de Víctor, 19/11/2026): se quita la tabla resumen para que se vea
+# directo el detalle y Robotín sea el protagonista. Funciona aunque la plantilla diaria siga generando el Resumen.
+HERO_CSS = '<style>.rbh{display:flex;align-items:center;gap:22px;margin:30px 0 8px;padding:22px 26px;background:linear-gradient(120deg,#16295C 0%,#2A4A9C 60%,#3B63C9 100%);color:#fff;border-radius:18px;position:relative;overflow:hidden}.rbh:before{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.07)}.rbh img{width:190px;height:190px;flex:none;filter:drop-shadow(0 10px 16px rgba(0,0,0,.4));animation:rbhf 3s ease-in-out infinite;cursor:pointer;position:relative}@keyframes rbhf{50%{transform:translateY(-8px) rotate(-2deg)}}.rbh .tx{position:relative;min-width:0}.rbh .k{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#FFC94D;font-weight:600}.rbh h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:clamp(26px,4.4vw,38px);line-height:1.08;margin:4px 0 8px;border:0;padding:0;color:#fff}.rbh p{margin:0 0 14px;font-size:15px;color:#DCE4F7;max-width:560px}.rbh .go{display:inline-block;background:#FF9F1C;color:#14213D;font-weight:700;font-size:16px;padding:13px 22px;border-radius:30px;border:0;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.3);font-family:inherit}.rbh .go:hover{background:#FFB347}.rbh .ej{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.rbh .ej button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.45);color:#fff;border-radius:18px;padding:6px 12px;font:600 13px Inter,system-ui,sans-serif;cursor:pointer}.rbh .ej button:hover{background:rgba(255,255,255,.25)}@media(max-width:640px){.rbh{flex-direction:column;text-align:center;padding:20px 16px;gap:8px}.rbh img{width:150px;height:150px}.rbh .ej{justify-content:center}.rbh p{font-size:14px}}@media print{.rbh{display:none}}</style>'
+HERO = ('<!--rb-hero-->' + HERO_CSS + '<section class="rbh" aria-label="Robotín, asistente de remates">'
+        '<img src="/remates/robotin/robotin.png" alt="Robotín, asistente de remates" width="190" height="190" data-robotin-open>'
+        '<div class="tx"><div class="k">Asistente automático</div><h2>¿Buscas un remate? Pregúntale a Robotín</h2>'
+        '<p>Dile qué buscas y dónde, y te muestra las opciones al instante. Si no hay nada exacto, te enseña lo más cercano.</p>'
+        '<button class="go" type="button" data-robotin-open>Conversar con Robotín</button>'
+        '<div class="ej"><button type="button" data-robotin-q="casa en lima">Casas en Lima</button><button type="button" data-robotin-q="departamento en lima">Departamentos en Lima</button><button type="button" data-robotin-q="busco terrenos">Terrenos</button><button type="button" data-robotin-q="propiedades en provincias">En provincias</button><button type="button" data-robotin-q="lo más barato en soles">Lo más barato</button></div>'
+        '</div></section><!--/rb-hero-->')
+n_hero = 0
+for p in ['index.html'] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]:
+    if not os.path.isfile(p): continue
+    s = open(p, encoding='utf-8').read(); s2 = s
+    if '<!--rb-hero-->' in s2:
+        s2 = re.sub(r'<!--rb-hero-->.*?<!--/rb-hero-->', lambda m: HERO, s2, flags=re.S)
+    m = re.search(r'<h2 class="s"><span>01</span>Resumen</h2>(.*?)(?=<h2 class="s"><span>02</span>)', s2, flags=re.S)
+    if m:
+        nota = re.search(r'<p class="note">.*?</p>', m.group(1), flags=re.S)
+        filtro = '<input id="q" type="search" placeholder="Filtrar las fichas de esta página por número, distrito o tipo" aria-label="Filtrar fichas">'
+        # la tabla NO se borra: queda oculta porque este script lee de ella los datos de remates.json
+        tabla = re.search(r'<div class="tw">.*?</table></div>', m.group(1), flags=re.S)
+        oculto = '<div hidden data-resumen="1">' + (tabla.group(0) if tabla else '') + '</div>'
+        s2 = s2[:m.start()] + (HERO if '<!--rb-hero-->' not in s2 else '') + oculto + '\n' + s2[m.end():]
+        s2 = s2.replace('<h2 class="s"><span>02</span>Detalle</h2>', '<h2 class="s"><span>01</span>Detalle</h2>' + (nota.group(0) if nota else '') + filtro, 1)
+        s2 = re.sub(r'<h2 class="s"><span>03</span>', '<h2 class="s"><span>02</span>', s2, count=1)
+    if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
+    if '<!--rb-hero-->' in s2: n_hero += 1
+print('portada de Robotín (sin tabla resumen) en', n_hero, 'páginas')
