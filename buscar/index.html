@@ -52,6 +52,12 @@ button.go{padding:13px 22px;font:inherit;font-weight:600;font-size:14px;backgrou
 .cnt{font-size:13px;color:var(--g2);margin:8px 0 0}
 td a{color:var(--dblue);text-decoration:none;font-weight:600}td a:hover{text-decoration:underline}
 .vac{padding:18px 4px;color:var(--g2)}
+.flt{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0 4px}
+.flt label{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--g2);display:flex;flex-direction:column;gap:4px;font-weight:600}
+.flt select,.flt input{min-width:0;padding:11px 12px;border:1px solid var(--l1);font:inherit;font-size:14px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);background:#fff;border-radius:0}
+.chk{display:inline-block;margin:8px 14px 0 0;font-size:14px;color:var(--g1)}.chk input{margin-right:6px}
+button.clr{background:#fff;color:var(--ink);padding:9px 16px;margin-top:8px}
+.qa{display:inline-block;padding:7px 10px;background:#25a244;color:#fff!important;font-size:12px;white-space:nowrap}
 </style></head><body>
 <header class="top"><div class="w"><div class="brand">Ventura Legal <i>abogados</i><small>Remates judiciales</small></div></div></header>
 <main class="w">
@@ -65,11 +71,22 @@ td a{color:var(--dblue);text-decoration:none;font-weight:600}td a:hover{text-dec
 <div class="sel"><select id="fecha" aria-label="Elegir fecha"></select><button class="go" id="ir" type="button">Ver edición</button></div>
 <ul class="eds" id="eds"></ul>
 
-<h2 class="s"><span>02</span>Buscar un remate</h2>
-<p class="note">Escribe el número de remate, el distrito, la región o el tipo de inmueble (por ejemplo: <i>26069</i>, <i>Surco</i>, <i>terreno Cusco</i>, <i>departamento Callao</i>). Se busca en todas las fechas.</p>
-<input id="q" type="search" placeholder="Número, distrito, región o tipo de inmueble" aria-label="Buscar remates" autocomplete="off">
+<h2 class="s"><span>02</span>Buscar y filtrar remates</h2>
+<p class="note">Escribe el número de remate, el distrito o la región (por ejemplo: <i>26069</i>, <i>Surco</i>, <i>Cusco</i>) o usa los filtros. Se busca en todas las ediciones. Los filtros de área solo alcanzan a los remates que publican su área en REMAJU.</p>
+<input id="q" type="search" placeholder="Número, distrito, región o tipo de inmueble" aria-label="Buscar remates" autocomplete="off" list="ubics">
+<datalist id="ubics"></datalist>
+<div class="flt">
+<label>Tipo<select id="f_tipo"><option value="">Todos</option><option value="casa">Casa</option><option value="departamento">Departamento</option><option value="terreno">Terreno</option><option value="local">Local</option><option value="estacionamiento">Estacionamiento</option><option value="otro">Otro</option></select></label>
+<label>Moneda<select id="f_mon"><option value="">Todas</option><option value="S/">Soles (S/)</option><option value="US$">Dólares (US$)</option></select></label>
+<label>Base mínima<input id="f_min" type="number" min="0" step="1000" placeholder="0"></label>
+<label>Base máxima<input id="f_max" type="number" min="0" step="1000" placeholder="sin límite"></label>
+<label>Área mínima (m²)<input id="f_area" type="number" min="0" step="10" placeholder="ej. 300"></label>
+<label>Ordenar por<select id="f_ord"><option value="rec">Más recientes</option><option value="asc">Base: menor a mayor</option><option value="desc">Base: mayor a menor</option><option value="area">Área: mayor a menor</option></select></label>
+</div>
+<label class="chk"><input type="checkbox" id="f_sc"> Solo sin cargas declaradas en REMAJU</label>
+<button class="go clr" id="f_clr" type="button">Limpiar filtros</button>
 <div class="cnt" id="cnt"></div>
-<div class="tw"><table id="tb" class="hide"><tr><th>N.°</th><th>Ubicación · Inmueble</th><th class="k">Base</th><th>Edición</th></tr></table></div>
+<div class="tw"><table id="tb" class="hide"><tr><th>N.°</th><th>Ubicación · Inmueble</th><th class="k">Base</th><th>Edición</th><th></th></tr></table></div>
 <div class="vac hide" id="vac">No encontré remates con esa búsqueda. Prueba con menos palabras o solo con el distrito.</div>
 
 <div class="av" style="background:#E5EAF6;padding:14px 18px;margin-top:30px;font-size:14px;color:#222"><p style="margin:0 0 6px">Información referencial tomada de REMAJU en la fecha de cada edición. Los remates pueden cambiar o suspenderse: verifica siempre la partida actualizada en SUNARP, la posesión del inmueble y las bases del remate en REMAJU.</p><p style="margin:0"><b>¿Quieres el estudio de título y cargas de alguno?</b> Escríbeme al 927 995 630.</p></div>
@@ -82,20 +99,37 @@ function norm(t){return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-
 function fmt(f){var p=f.split('-');var m=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];return parseInt(p[2],10)+' de '+m[parseInt(p[1],10)-1]+' de '+p[0]}
 function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 var sel=document.getElementById('fecha'),eds=document.getElementById('eds'),q=document.getElementById('q'),tb=document.getElementById('tb'),cnt=document.getElementById('cnt'),vac=document.getElementById('vac');
+function num(t){var m=String(t).match(/[\d,]+(?:\.\d+)?/);return m?parseFloat(m[0].replace(/,/g,'')):null}
+function area(r){var t=r[2]+' '+r[14],m=t.match(/([\d,]+(?:\.\d+)?)\s*m²/);if(m)return parseFloat(m[1].replace(/,/g,''));m=t.match(/([\d.]+)\s*ha\b/i);return m?parseFloat(m[1])*10000:null}
+function tipo(r){var t=norm(r[2]);if(/^(casa|vivienda)/.test(t))return'casa';if(/departamento|dpto|duplex/.test(t))return'departamento';if(/^(local|tienda|oficina)/.test(t))return'local';if(/terreno|lote|fraccion|predio|parcela/.test(t))return'terreno';if(/estacionamiento|cochera/.test(t))return'estacionamiento';return'otro'}
+function $(i){return document.getElementById(i)}
 function buscar(){
- var v=norm(q.value).trim();
+ var v=norm(q.value).trim(),ft=$('f_tipo').value,fm=$('f_mon').value,mn=parseFloat($('f_min').value),mx=parseFloat($('f_max').value),fa=parseFloat($('f_area').value),sc=$('f_sc').checked,ord=$('f_ord').value;
  tb.querySelectorAll('tr.r').forEach(function(r){r.remove()});
- if(!v){tb.classList.add('hide');vac.classList.add('hide');cnt.textContent='';return}
- var ws=v.split(/\s+/),out=[];
- for(var i=0;i<D.remates.length;i++){var r=D.remates[i],h=norm(r[0]+' '+r[1]+' '+r[2]+' '+r[3]);
-  if(ws.every(function(w){return h.indexOf(w)>=0}))out.push(r)}
- cnt.textContent=out.length+(out.length===1?' remate encontrado':' remates encontrados')+(out.length>MAX?' (se muestran los primeros '+MAX+')':'');
+ var activo=v||ft||fm||!isNaN(mn)||!isNaN(mx)||!isNaN(fa)||sc;
+ if(!activo){tb.classList.add('hide');vac.classList.add('hide');cnt.textContent='';return}
+ var ws=v?v.split(/\s+/):[],out=[];
+ for(var i=0;i<D.remates.length;i++){var r=D.remates[i],h=norm(r[0]+' '+r[1]+' '+r[2]+' '+r[3]+' '+(r[14]||''));
+  if(!ws.every(function(w){return h.indexOf(w)>=0}))continue;
+  if(ft&&tipo(r)!==ft)continue;
+  var mon=r[3].indexOf('US$')===0?'US$':'S/';if(fm&&mon!==fm)continue;
+  var b=num(r[3]);if(!isNaN(mn)&&(b===null||b<mn))continue;if(!isNaN(mx)&&(b===null||b>mx))continue;
+  var ar=area(r);if(!isNaN(fa)&&(ar===null||ar<fa))continue;
+  if(sc&&!/ninguna declarada/i.test(r[13]||''))continue;
+  out.push({r:r,b:b,a:ar,mon:mon})}
+ if(ord==='asc')out.sort(function(x,y){return (x.b||0)-(y.b||0)});
+ else if(ord==='desc')out.sort(function(x,y){return (y.b||0)-(x.b||0)});
+ else if(ord==='area')out.sort(function(x,y){return (y.a||0)-(x.a||0)});
+ else out.sort(function(x,y){return x.r[4]<y.r[4]?1:x.r[4]>y.r[4]?-1:0});
+ if((ord==='asc'||ord==='desc')&&!fm){cnt.textContent=''}
+ cnt.textContent=out.length+(out.length===1?' remate encontrado':' remates encontrados')+(out.length>MAX?' (se muestran los primeros '+MAX+')':'')+((ord==='asc'||ord==='desc')&&!fm?'. Ojo: el orden por base mezcla soles y dólares; filtra por moneda para comparar.':'');
  if(!out.length){tb.classList.add('hide');vac.classList.remove('hide');return}
  vac.classList.add('hide');tb.classList.remove('hide');
- out.slice(0,MAX).forEach(function(r){
+ out.slice(0,MAX).forEach(function(o){var r=o.r;
   var tr=document.createElement('tr');tr.className='r';
   var link='/remates/'+r[4]+'/'+(r[5]?'#r'+r[0]:'');
-  tr.innerHTML='<td class="n">'+esc(r[0])+'</td><td><b>'+esc(r[1])+'</b><br><span class="s2">'+esc(r[2])+'</span></td><td class="m">'+esc(r[3])+'</td><td><a href="'+link+'">'+esc(fmt(r[4]))+'</a></td>';
+  var wa='https://wa.me/51927995630?text='+encodeURIComponent('Hola Víctor, quiero apoyo con el remate '+r[0]+' de REMAJU');
+  tr.innerHTML='<td class="n">'+esc(r[0])+'</td><td><b>'+esc(r[1])+'</b><br><span class="s2">'+esc(r[2])+'</span></td><td class="m">'+esc(r[3])+'</td><td><a href="'+link+'">'+esc(fmt(r[4]))+'</a></td><td><a class="qa" href="'+wa+'">Consultar</a></td>';
   tb.appendChild(tr)})
 }
 fetch('/remates/remates.json',{cache:'no-cache'}).then(function(r){return r.json()}).then(function(d){
@@ -108,7 +142,10 @@ fetch('/remates/remates.json',{cache:'no-cache'}).then(function(r){return r.json
  document.getElementById('ir').addEventListener('click',function(){location.href=sel.value});
  sel.addEventListener('change',function(){location.href=sel.value});
  q.addEventListener('input',buscar);
+ ['f_tipo','f_mon','f_min','f_max','f_area','f_ord','f_sc'].forEach(function(i){$(i).addEventListener('input',buscar)});
+ $('f_clr').addEventListener('click',function(){q.value='';['f_tipo','f_mon','f_min','f_max','f_area'].forEach(function(i){$(i).value=''});$('f_sc').checked=false;$('f_ord').value='rec';buscar()});
+ var us={};d.remates.forEach(function(r){us[r[1]]=1});var dl=$('ubics');Object.keys(us).sort().forEach(function(u){var o=document.createElement('option');o.value=u;dl.appendChild(o)});
  var p=new URLSearchParams(location.search).get('q');if(p){q.value=p;buscar()}
 }).catch(function(){eds.innerHTML='<li>No se pudo cargar el índice de ediciones. Recarga la página.</li>'});
 })();
-</script></body></html>
+</script><!--fab--><style>.fab{position:fixed;right:14px;bottom:14px;z-index:50;display:flex;flex-direction:column;gap:8px;align-items:flex-end}.fab a{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:30px;color:#fff;font:600 14px Inter,system-ui,sans-serif;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28)}.fab .g1{background:#2A4A9C}.fab .g2{background:#25a244}@media(max-width:520px){.fab a{padding:11px 14px;font-size:13px}}@media print{.fab{display:none}}</style><div class="fab"><a class="g2" href="https://wa.me/51927995630?text=Hola%20V%C3%ADctor%2C%20quiero%20apoyo%20con%20un%20remate%20de%20REMAJU" target="_blank" rel="noopener">Escríbeme por WhatsApp</a></div><!--/fab--></body></html>
