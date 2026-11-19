@@ -82,14 +82,15 @@ button.go.wa2{background:#25a244;border-color:#25a244;font-size:15px;padding:14p
 <h2 class="s"><span>01</span>¿Qué quieres que te avise?</h2>
 <p class="note">Todos los campos son opcionales: cuanto más preciso seas, menos avisos sin interés recibirás. Abajo verás cómo se vería tu alerta con los remates ya publicados.</p>
 <div class="fm">
-<label>Ciudad, distrito o región<input id="a_ub" type="text" list="ubics" placeholder="ej. Lima, Surco, Cusco" autocomplete="off"></label>
+<label>Zona o región<select id="a_zona"></select></label>
+<label><span id="a_sub_l">Distrito o provincia</span><select id="a_sub"><option value="">—</option></select></label>
 <label>Moneda de la base<select id="a_mon"><option value="">Cualquiera</option><option value="S/">Soles (S/)</option><option value="US$">Dólares (US$)</option></select></label>
 <label>Base mínima<input id="a_min" type="number" min="0" step="1000" placeholder="0"></label>
 <label>Base máxima<input id="a_max" type="number" min="0" step="1000" placeholder="sin límite"></label>
 <label>Área mínima (m²)<input id="a_area" type="number" min="0" step="10" placeholder="ej. 300"></label>
 <label>Frecuencia<select id="a_fr"><option>Cada día que haya coincidencias</option><option>Resumen semanal (viernes)</option></select></label>
 </div>
-<datalist id="ubics"></datalist>
+
 <div class="lab" style="margin-top:6px">Tipo de inmueble</div>
 <div class="tp" id="a_tp"><label><input type="checkbox" value="casa">Casa</label><label><input type="checkbox" value="departamento">Departamento</label><label><input type="checkbox" value="terreno">Terreno</label><label><input type="checkbox" value="local">Local</label><label><input type="checkbox" value="estacionamiento">Estacionamiento</label><label><input type="checkbox" value="otro">Otro</label></div>
 <label class="tp" style="margin-top:8px"><span style="display:inline-flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="a_sc"> Solo remates sin cargas declaradas en REMAJU</span></label>
@@ -122,11 +123,41 @@ function fmt(f){var p=f.split('-');var m=['enero','febrero','marzo','abril','may
 function num(t){var m=String(t).match(/[\d,]+(?:\.\d+)?/);return m?parseFloat(m[0].replace(/,/g,'')):null}
 function area(r){var t=r[2]+' '+r[14],m=t.match(/([\d,]+(?:\.\d+)?)\s*m²/);if(m)return parseFloat(m[1].replace(/,/g,''));m=t.match(/([\d.]+)\s*ha\b/i);return m?parseFloat(m[1])*10000:null}
 function tipo(r){var t=norm(r[2]);if(/^(casa|vivienda)/.test(t))return'casa';if(/departamento|dpto|duplex/.test(t))return'departamento';if(/^(local|tienda|oficina)/.test(t))return'local';if(/terreno|lote|fraccion|predio|parcela/.test(t))return'terreno';if(/estacionamiento|cochera/.test(t))return'estacionamiento';return'otro'}
+
+var LM=['Ancón','Ate','Barranco','Breña','Carabayllo','Cercado de Lima','Chaclacayo','Chorrillos','Cieneguilla','Comas','El Agustino','Independencia','Jesús María','La Molina','La Victoria','Lince','Los Olivos','Lurigancho (Chosica)','Lurín','Magdalena del Mar','Miraflores','Pachacámac','Pucusana','Pueblo Libre','Puente Piedra','Punta Hermosa','Punta Negra','Rímac','San Bartolo','San Borja','San Isidro','San Juan de Lurigancho','San Juan de Miraflores','San Luis','San Martín de Porres','San Miguel','Santa Anita','Santa María del Mar','Santa Rosa','Santiago de Surco','Surquillo','Villa El Salvador','Villa María del Triunfo'];
+var CALLAO=['Callao (Cercado)','Bellavista','Carmen de la Legua Reynoso','La Perla','La Punta','Mi Perú','Ventanilla'];
+var PROV={'Amazonas':['Chachapoyas','Bagua','Bongará','Condorcanqui','Luya','Rodríguez de Mendoza','Utcubamba'],'Áncash':['Huaraz','Aija','Antonio Raymondi','Asunción','Bolognesi','Carhuaz','Carlos Fermín Fitzcarrald','Casma','Corongo','Huari','Huarmey','Huaylas','Mariscal Luzuriaga','Ocros','Pallasca','Pomabamba','Recuay','Santa','Sihuas','Yungay'],'Apurímac':['Abancay','Andahuaylas','Antabamba','Aymaraes','Chincheros','Cotabambas','Grau'],'Arequipa':['Arequipa','Camaná','Caravelí','Castilla','Caylloma','Condesuyos','Islay','La Unión'],'Ayacucho':['Huamanga','Cangallo','Huanca Sancos','Huanta','La Mar','Lucanas','Parinacochas','Páucar del Sara Sara','Sucre','Víctor Fajardo','Vilcas Huamán'],'Cajamarca':['Cajamarca','Cajabamba','Celendín','Chota','Contumazá','Cutervo','Hualgayoc','Jaén','San Ignacio','San Marcos','San Miguel','San Pablo','Santa Cruz'],'Cusco':['Cusco','Acomayo','Anta','Calca','Canas','Canchis','Chumbivilcas','Espinar','La Convención','Paruro','Paucartambo','Quispicanchi','Urubamba'],'Huancavelica':['Huancavelica','Acobamba','Angaraes','Castrovirreyna','Churcampa','Huaytará','Tayacaja'],'Huánuco':['Huánuco','Ambo','Dos de Mayo','Huacaybamba','Huamalíes','Lauricocha','Leoncio Prado','Marañón','Pachitea','Puerto Inca','Yarowilca'],'Ica':['Ica','Chincha','Nasca','Palpa','Pisco'],'Junín':['Huancayo','Chanchamayo','Chupaca','Concepción','Jauja','Junín','Satipo','Tarma','Yauli'],'La Libertad':['Trujillo','Ascope','Bolívar','Chepén','Gran Chimú','Julcán','Otuzco','Pacasmayo','Pataz','Sánchez Carrión','Santiago de Chuco','Virú'],'Lambayeque':['Chiclayo','Ferreñafe','Lambayeque'],'Lima (provincias)':['Barranca','Cajatambo','Canta','Cañete','Huaral','Huarochirí','Huaura','Oyón','Yauyos'],'Loreto':['Maynas','Alto Amazonas','Datem del Marañón','Loreto','Mariscal Ramón Castilla','Putumayo','Requena','Ucayali'],'Madre de Dios':['Tambopata','Manu','Tahuamanu'],'Moquegua':['Mariscal Nieto','General Sánchez Cerro','Ilo'],'Pasco':['Pasco','Daniel Alcides Carrión','Oxapampa'],'Piura':['Piura','Ayabaca','Huancabamba','Morropón','Paita','Sechura','Sullana','Talara'],'Puno':['Puno','Azángaro','Carabaya','Chucuito','El Collao','Huancané','Lampa','Melgar','Moho','San Antonio de Putina','San Román','Sandia','Yunguyo'],'San Martín':['Moyobamba','Bellavista','El Dorado','Huallaga','Lamas','Mariscal Cáceres','Picota','Rioja','San Martín','Tocache'],'Tacna':['Tacna','Candarave','Jorge Basadre','Tarata'],'Tumbes':['Tumbes','Contralmirante Villar','Zarumilla'],'Ucayali':['Coronel Portillo','Atalaya','Padre Abad','Purús']};
+// capitales o ciudades con las que suele figurar cada provincia en REMAJU (para la vista previa)
+var CIU={'Maynas':['iquitos','punchana','san juan bautista','belen'],'Coronel Portillo':['pucallpa','calleria','manantay','yarinacocha','campoverde'],'Santa':['chimbote','nuevo chimbote','coishco'],'Huamanga':['ayacucho'],'San Román':['juliaca'],'Mariscal Nieto':['moquegua'],'Tambopata':['puerto maldonado','las piedras'],'Alto Amazonas':['yurimaguas'],'Leoncio Prado':['tingo maria'],'San Martín':['tarapoto'],'Sánchez Carrión':['huamachuco'],'Pasco':['cerro de pasco'],'Chanchamayo':['la merced','pichanaqui'],'La Convención':['quillabamba'],'Islay':['mollendo'],'Huaura':['huacho'],'Chincha':['chincha alta','chincha baja','sunampe'],'Chiclayo':['jose leonardo ortiz','pimentel','monsefu','eten','la victoria'],'Trujillo':['la esperanza','victor larco','salaverry','huanchaco','el porvenir'],'Arequipa':['cerro colorado','paucarpata','socabaya','alto selva alegre','jose luis bustamante','cayma','yanahuara'],'Cusco':['wanchaq','san sebastian','san jeronimo','santiago'],'Huaraz':['independencia'],'Satipo':['rio negro'],'Ica':['los aquijes','pachacutec','la tinguina','parcona'],'Lamas':['caynarachi'],'Sullana':['bellavista'],'Piura':['castilla','catacaos','veintiseis de octubre'],'Huancayo':['el tambo','chilca'],'Tacna':['pocollay','ciudad nueva','gregorio albarracin']};
+function lmKey(n){return norm(n).replace(/ \(.*\)/,'')}
+var LMK=LM.map(lmKey);
+function depDe(r){var h=norm(r[1]),k,ds=Object.keys(PROV),q0=h.split(/[,(]/)[0].trim(),resto=h.slice(q0.length);if(LMK.indexOf(q0)>=0&&(!resto.trim()||/lima/.test(resto))&&!/callao/.test(resto))return'Lima Metropolitana';for(var i=0;i<ds.length;i++){k=norm(ds[i]).replace(' (provincias)','');if(k!=='lima'&&new RegExp('(^|[^a-z])'+k+'([^a-z]|$)').test(h))return ds[i]}
+ if(/callao/.test(h))return'Callao';var p0=h.split(/[,(]/)[0].trim();
+ if(LMK.indexOf(p0)>=0||p0==='lima'&&h.indexOf(',')<0)return'Lima Metropolitana';
+ if(/lima/.test(h))return'Lima (provincias)';return''}
+function enUbic(r,z,sub){if(!z)return true;var d=depDe(r);if(d!==z)return false;if(!sub)return true;var h=norm(r[1]),k=lmKey(sub).replace(' cercado','');
+ if(z==='Lima Metropolitana')return h.split(/[,(]/)[0].trim()===k||(k==='cercado de lima'&&h.split(/[,(]/)[0].trim()==='lima');
+ if(z==='Callao')return k==='callao'?!CALLAO.slice(1).some(function(x){return h.indexOf(norm(x))>=0}):h.indexOf(k)>=0;
+ if(h.replace(norm(z).replace(' (provincias)',''),' ').indexOf(k)>=0)return true;if(norm(z)===k&&h.split(/[,(]/).length===1)return true;
+ return (CIU[sub]||[]).some(function(c){return h.indexOf(c)>=0})}
+function llenaZona(){var z=$('a_zona'),o=[['','Todo el Perú'],['Lima Metropolitana','Lima Metropolitana (43 distritos)'],['Callao','Callao']];Object.keys(PROV).forEach(function(d){o.push([d,d])});
+ z.innerHTML=o.map(function(x){return'<option value="'+x[0]+'">'+x[1]+'</option>'}).join('')}
+function llenaSub(){var z=$('a_zona').value,s=$('a_sub'),l=z==='Lima Metropolitana'?LM:z==='Callao'?CALLAO:(PROV[z]||[]),esD=z==='Lima Metropolitana'||z==='Callao';
+ $('a_sub_l').textContent=esD?'Distrito':'Provincia';s.disabled=!z;
+ s.innerHTML='<option value="">'+(!z?'—':esD?'Todos los distritos':'Todas las provincias')+'</option>'+l.map(function(x){return'<option>'+x+'</option>'}).join('')}
+function ubTxt(c){if(!c.zona)return'todo el Perú';var esD=c.zona==='Lima Metropolitana'||c.zona==='Callao';return c.sub?(esD?c.sub+', '+c.zona:'provincia de '+c.sub+', '+c.zona.replace(' (provincias)','')):(esD?'todos los distritos de '+c.zona:'todas las provincias de '+c.zona.replace(' (provincias)',' (sin Lima Metropolitana)'))}
+function fijaUb(t){t=norm(t||'');if(!t)return;var i,d,ds=Object.keys(PROV);
+ if(t==='lima'||t==='lima metropolitana'){$('a_zona').value='Lima Metropolitana';llenaSub();return}
+ for(i=0;i<LM.length;i++)if(lmKey(LM[i])===t||norm(LM[i])===t){$('a_zona').value='Lima Metropolitana';llenaSub();$('a_sub').value=LM[i];return}
+ if(t==='callao'){$('a_zona').value='Callao';llenaSub();return}
+ for(i=1;i<CALLAO.length;i++)if(norm(CALLAO[i])===t){$('a_zona').value='Callao';llenaSub();$('a_sub').value=CALLAO[i];return}
+ for(i=0;i<ds.length;i++)if(norm(ds[i]).replace(' (provincias)','')===t&&ds[i]!=='Lima (provincias)'){$('a_zona').value=ds[i];llenaSub();return}
+ for(i=0;i<ds.length;i++){d=PROV[ds[i]];for(var j=0;j<d.length;j++)if(norm(d[j])===t||(CIU[d[j]]||[]).indexOf(t)>=0){$('a_zona').value=ds[i];llenaSub();$('a_sub').value=d[j];return}}}
 function crit(){var tps=[].slice.call(document.querySelectorAll('#a_tp input:checked')).map(function(i){return i.value});
- return{ub:$('a_ub').value.trim(),mon:$('a_mon').value,min:parseFloat($('a_min').value),max:parseFloat($('a_max').value),area:parseFloat($('a_area').value),tp:tps,sc:$('a_sc').checked,fr:$('a_fr').value}}
-function match(c){var out=[],ws=c.ub?norm(c.ub).split(/[\s,]+/).filter(Boolean):[];
+ return{zona:$('a_zona').value,sub:$('a_sub').value,mon:$('a_mon').value,min:parseFloat($('a_min').value),max:parseFloat($('a_max').value),area:parseFloat($('a_area').value),tp:tps,sc:$('a_sc').checked,fr:$('a_fr').value}}
+function match(c){var out=[];
  for(var i=0;i<D.remates.length;i++){var r=D.remates[i],h=norm(r[1]+' '+(r[14]||''));
-  if(!ws.every(function(w){return h.indexOf(w)>=0}))continue;
+  if(!enUbic(r,c.zona,c.sub))continue;
   if(c.tp.length&&c.tp.indexOf(tipo(r))<0)continue;
   var mon=r[3].indexOf('US$')===0?'US$':'S/';if(c.mon&&mon!==c.mon)continue;
   var b=num(r[3]);if(!isNaN(c.min)&&(b===null||b<c.min))continue;if(!isNaN(c.max)&&(b===null||b>c.max))continue;
@@ -137,7 +168,8 @@ function pv(){var c=crit(),out=match(c),el=$('a_pv');
  $('a_cnt').textContent=out.length+(out.length===1?' remate publicado coincide con tu alerta':' remates publicados coinciden con tu alerta')+' (desde el 6 de noviembre de 2026)';
  el.innerHTML=out.length?'<ul>'+out.slice(0,8).map(function(r){return'<li><span><b>'+esc(r[0])+'</b> · '+esc(r[1])+' · '+esc(r[2])+'</span><span>'+esc(r[3])+' · <a href="/remates/'+r[4]+'/'+(r[5]?'#r'+r[0]:'')+'">'+esc(fmt(r[4]))+'</a></span></li>'}).join('')+'</ul>':'<p class="note">Aún no hay remates publicados que encajen. Si dejas tu alerta, te avisaremos cuando aparezca uno.</p>'}
 function valid(){var ok=$('a_ok').checked&&$('a_nom').value.trim().length>1&&$('a_tel').value.replace(/\D/g,'').length>=9;$('a_go').disabled=!ok}
-['a_ub','a_mon','a_min','a_max','a_area','a_sc'].forEach(function(i){$(i).addEventListener('input',pv)});
+['a_sub','a_mon','a_min','a_max','a_area','a_sc'].forEach(function(i){$(i).addEventListener('input',pv)});
+$('a_zona').addEventListener('input',function(){llenaSub();pv()});
 document.querySelectorAll('#a_tp input').forEach(function(i){i.addEventListener('input',pv)});
 ['a_ok','a_nom','a_tel'].forEach(function(i){$(i).addEventListener('input',valid)});
 $('a_go').addEventListener('click',function(){
@@ -145,12 +177,13 @@ $('a_go').addEventListener('click',function(){
  if(tel.length<9){$('a_err').textContent='Escribe un número de WhatsApp válido.';return}
  var L=['Hola Víctor, quiero crear una alerta de remates de REMAJU:','Nombre: '+$('a_nom').value.trim(),'WhatsApp: '+tel];
  if($('a_mail').value.trim())L.push('Correo: '+$('a_mail').value.trim());
- L.push('Ubicación: '+(c.ub||'cualquiera'),'Tipo: '+(c.tp.length?c.tp.join(', '):'cualquiera'),'Base: '+(c.mon||'S/ o US$')+' '+(isNaN(c.min)?'0':c.min)+' a '+(isNaN(c.max)?'sin límite':c.max),'Área mínima: '+(isNaN(c.area)?'sin mínimo':c.area+' m²'),'Solo sin cargas declaradas: '+(c.sc?'sí':'no'),'Frecuencia: '+c.fr,'Autorizo el tratamiento de mis datos para recibir estas alertas (Ley 29733).');
+ L.push('Ubicación: '+ubTxt(c),'Tipo: '+(c.tp.length?c.tp.join(', '):'cualquiera'),'Base: '+(c.mon||'S/ o US$')+' '+(isNaN(c.min)?'0':c.min)+' a '+(isNaN(c.max)?'sin límite':c.max),'Área mínima: '+(isNaN(c.area)?'sin mínimo':c.area+' m²'),'Solo sin cargas declaradas: '+(c.sc?'sí':'no'),'Frecuencia: '+c.fr,'Autorizo el tratamiento de mis datos para recibir estas alertas (Ley 29733).');
  window.open('https://wa.me/51927995630?text='+encodeURIComponent(L.join('\n')),'_blank','noopener');
 });
+llenaZona();llenaSub();
 fetch('/remates/remates.json',{cache:'no-cache'}).then(function(r){return r.json()}).then(function(d){D=d;
- var us={};d.remates.forEach(function(r){us[r[1]]=1});var dl=$('ubics');Object.keys(us).sort().forEach(function(u){var o=document.createElement('option');o.value=u;dl.appendChild(o)});
- try{var q=new URLSearchParams(location.search);if(q.get('ub'))$('a_ub').value=q.get('ub');if(q.get('mon'))$('a_mon').value=q.get('mon');if(q.get('min'))$('a_min').value=q.get('min');if(q.get('max'))$('a_max').value=q.get('max');if(q.get('area'))$('a_area').value=q.get('area');if(q.get('tp')){var t=document.querySelector('#a_tp input[value="'+q.get('tp')+'"]');if(t)t.checked=true}if(q.get('sc'))$('a_sc').checked=true}catch(e){}
+
+ try{var q=new URLSearchParams(location.search);if(q.get('ub'))fijaUb(q.get('ub'));if(q.get('mon'))$('a_mon').value=q.get('mon');if(q.get('min'))$('a_min').value=q.get('min');if(q.get('max'))$('a_max').value=q.get('max');if(q.get('area'))$('a_area').value=q.get('area');if(q.get('tp')){var t=document.querySelector('#a_tp input[value="'+q.get('tp')+'"]');if(t)t.checked=true}if(q.get('sc'))$('a_sc').checked=true}catch(e){}
  pv()
 }).catch(function(){$('a_cnt').textContent='No se pudo cargar la vista previa; igual puedes enviar tu alerta.'});
 valid();
