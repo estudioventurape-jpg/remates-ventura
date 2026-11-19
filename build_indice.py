@@ -54,7 +54,7 @@ FAB_CSS = '<style>.fab{position:fixed;right:14px;bottom:14px;z-index:50;display:
 def fab_html():
     g = f'<a class="g1" href="{GRUPO_URL}" target="_blank" rel="noopener">Únete al grupo de remates</a>' if GRUPO_URL else ''
     return f'<!--fab-->{FAB_CSS}<div class="fab">{g}<a class="g2" href="{WA_DIRECTO}" target="_blank" rel="noopener">Escríbeme por WhatsApp</a></div><!--/fab-->'
-paginas = ['index.html', os.path.join('buscar', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
+paginas = ['index.html', os.path.join('buscar', 'index.html'), os.path.join('alertas', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
 for p in paginas:
     if not os.path.isfile(p): continue
     s = open(p, encoding='utf-8').read()
@@ -64,3 +64,12 @@ for p in paginas:
         s2 = s.replace('</body>', fab_html() + '</body>', 1)
     if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
 print('botones flotantes en', len(paginas), 'páginas')
+
+# botón «Crear una alerta» junto a «Ediciones anteriores y buscador»
+BTN_AL = '<a class="btn" href="/remates/alertas/">Crear una alerta</a>'
+for p in ['index.html', os.path.join('buscar', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]:
+    s = open(p, encoding='utf-8').read()
+    if '/remates/alertas/' in s: continue
+    s2 = re.sub(r'(<div class="cta">.*?)(</div>)', lambda m: m.group(1) + BTN_AL + m.group(2), s, count=1, flags=re.S)
+    if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
+print('botón de alertas listo')
