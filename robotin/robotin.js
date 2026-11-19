@@ -5,7 +5,9 @@
 (function () {
   'use strict';
   var WA = '51927995630', BASE = '/remates/', SS = 'robotin_v2';
-  var D = null, ready = null, last = null, shown = 0, F = {}, els = {}, G = {}, DIC = {}, TERMS = [];
+  var D = null, ready = null, last = null, shown = 0, F = {}, els = {}, G = {}, DIC = {}, TERMS = [], LG = null, SH = {};
+  var FUENTES = [['pj', 'Poder Judicial (REMAJU)', 'REMAJU'], ['sunat', 'SUNAT', 'SUNAT'], ['indecopi', 'INDECOPI', 'INDECOPI']];
+  function src(r) { return r[15] || 'pj'; }
 
   /* ================= MEMORIA GEOGRÁFICA ================= */
   var ZONAS = {
@@ -64,7 +66,7 @@
   function limpio(t) { return norm(t).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function num(t) { var m = String(t).match(/[\d,]+(?:\.\d+)?/); return m ? parseFloat(m[0].replace(/,/g, '')) : null; }
-  function area(r) { var t = r[2] + ' ' + (r[14] || ''), m = t.match(/([\d,]+(?:\.\d+)?)\s*m²/); if (m) return parseFloat(m[1].replace(/,/g, '')); m = t.match(/([\d.]+)\s*ha\b/i); return m ? parseFloat(m[1]) * 10000 : null; }
+  function area(r) { var t = r[2] + ' ' + (r[14] || ''), m = t.match(/([\d,]+(?:\.\d+)?)\s*m(?:²|2)(?![\d])/i); if (m) return parseFloat(m[1].replace(/,/g, '')); m = t.match(/(?:area\s*)?(?:ha|has|hás)\.?\s*:?\s*([\d.]+)/i) || t.match(/([\d.]+)\s*(?:ha|has|hás)\b/i); var v = m ? parseFloat(m[1]) : NaN; return v > 0 ? Math.round(v * 10000) : null; }
   function tipo(r) { var t = norm(r[2]); if (/^(casa|vivienda)/.test(t)) return 'casa'; if (/departamento|dpto|duplex/.test(t)) return 'departamento'; if (/^(local|tienda|oficina)/.test(t)) return 'local'; if (/terreno|lote|fraccion|predio|parcela/.test(t)) return 'terreno'; if (/estacionamiento|cochera/.test(t)) return 'estacionamiento'; return 'otro'; }
   function mon(r) { return r[3].indexOf('US$') === 0 ? 'US$' : 'S/'; }
   function link(r) { return BASE + r[4] + '/#r' + r[0]; }
@@ -128,11 +130,53 @@
     if (dep === 'lima' && parts[0] === 'lima' && parts.length === 1) { g.metro = true; g.dist = 'cercado de lima'; g.zona = 'lima centro'; }
     return g;
   }
+  function hoyLima() { var d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' })); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function tc(t) { return t.replace(/(^|[\s(,])([a-záéíóúñ])/g, function (m, a, c) { return a + c.toUpperCase(); }).replace(/\b(De|Del|La|Las|Los|El|Y)\b/g, function (w, _, i) { return i ? w.toLowerCase() : w; }); }
+  // Ubicación de un inmueble de SUNAT a partir de su descripción (la sede que remata puede estar en otra ciudad)
+  function ubicSunat(tit, region) {
+    var t = ' ' + limpio(tit) + ' ', rk = limpio(region), L = 'A-Za-zÁÉÍÓÚÑáéíóúñ';
+    var md = tit.match(new RegExp('distrito de ([' + L + ' ]+?)(?=,|;|\\.| provincia| y | del | departamento|$)', 'i')), mp = tit.match(new RegExp('provincia de ([' + L + ' ]+?)(?=,|;|\\.| y | departamento|$)', 'i'));
+    var dist = md ? md[1].trim().toLowerCase() : '', prov = mp ? mp[1].trim().toLowerCase() : '';
+    if (limpio(dist) === rk) dist = ''; if (limpio(prov) === rk && rk !== 'lima') prov = '';
+    if (rk === 'lima') {
+      if (prov && limpio(prov) !== 'lima') return tc((dist ? dist + ', ' : '') + prov) + ' (Lima)';
+      var best = ''; Object.keys(DIST).forEach(function (k) { if (t.indexOf(' ' + k + ' ') >= 0 && k.length > best.length) best = k; });
+      return best ? DIST[best].n + ', Lima' : 'Lima';
+    }
+    var parts = [dist, prov].filter(function (x) { return x && limpio(x) !== rk; });
+    if (parts.length) return tc(parts.join(', ')) + ' (' + region + ')';
+    var city = ''; (CIUDADES[rk] || []).forEach(function (c) { if (!city && t.indexOf(' ' + limpio(c) + ' ') >= 0) city = c; });
+    return city ? city + ' (' + region + ')' : region;
+  }
+  function mapSunat(js) {
+    if (!js || !js.remates) return []; var hoy = hoyLima();
+    return js.remates.filter(function (x) { return x.fecha >= hoy; }).map(function (x) {
+      var t = norm(x.titulo), tp = x.tipo;
+      if (tp === 'Inmueble') tp = /construccion|pisos|niveles|vivienda|\bcasa\b/.test(t) ? 'Casa o predio con construcción' : 'Inmueble';
+      if (tp === 'Local u oficina') tp = /oficina/.test(t) ? 'Oficina' : /almacen/.test(t) ? 'Local (almacén)' : 'Local comercial';
+      var f2 = function (v) { return v ? 'S/ ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; };
+      return ['S' + x.id, ubicSunat(x.titulo, x.region), tp, f2(x.base), x.fecha, 1, f2(x.tasacion), '', '', '', x.partida || '', '', '', x.cargas || '', x.titulo, 'sunat',
+        { n: x.id, url: x.url, hora: x.hora, conv: x.convocatoria, acc: x.acciones, obs: x.obs, local: x.local }];
+    });
+  }
+  function mapIndecopi(js) {
+    if (!js || !js.proximos) return []; var hoy = hoyLima(), out = [];
+    js.proximos.filter(function (p) { return p.fecha_remate >= hoy; }).forEach(function (p) {
+      (p.items || []).forEach(function (it, k) {
+        out.push(['I' + p.fecha_remate + '-' + (it.n || k + 1), it.region || p.zona || '', it.tipo || 'Inmueble', it.base || '', p.fecha_remate, 1, it.tasacion || '', '', '', '', it.partida || '', '', '', it.cargas || '', it.titulo || '', 'indecopi',
+          { n: it.n || k + 1, url: p.url, pdf: p.pdf_local || p.pdf, com: p.fecha_comunicacion, conv: p.convocatoria }]);
+      });
+    });
+    return out;
+  }
   function term(k, o) { if (!DIC[k]) DIC[k] = o; }
   function load() {
     if (ready) return ready;
-    ready = fetch(BASE + 'remates.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
-      D = d; DIC = {};
+    function opc(u) { return fetch(BASE + u, { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+    ready = Promise.all([fetch(BASE + 'remates.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }), opc('otros/sunat.json'), opc('otros/indecopi.json')]).then(function (A) {
+      var d = A[0]; D = d; DIC = {};
+      D.sunat = mapSunat(A[1]); D.inde = mapIndecopi(A[2]); D.indeInfo = A[2] || null; D.sunatInfo = A[1] || null;
+      D.todos = d.remates.concat(D.sunat, D.inde);
       // 1) zonas y Lima
       Object.keys(ZONAS).forEach(function (z) { term(z, { k: 'zona', key: z, n: ZONAS[z][0] }); });
       Object.keys(ALIAS_ZONA).forEach(function (a) { var z = ALIAS_ZONA[a]; term(a, { k: 'zona', key: z, n: ZONAS[z][0] }); });
@@ -149,7 +193,7 @@
       Object.keys(MACROS).forEach(function (k) { term(k, { k: 'macro', key: k, n: MACROS[k][0], deps: MACROS[k][1] }); });
       Object.keys(CIUDADES).forEach(function (dep) { CIUDADES[dep].forEach(function (c) { term(norm(c), { k: 'ciudad', key: limpio(c), n: c, dep: dep }); }); });
       // 4) lo que aparece en los propios remates
-      d.remates.forEach(function (r) {
+      D.todos.forEach(function (r) {
         var g = geo(r); G[r[0]] = g;
         r[1].split(/[,()]/).forEach(function (raw) { var k = limpio(raw); if (k.length > 2 && g.dep) term(k, { k: 'ciudad', key: k, n: raw.trim(), dep: g.dep }); });
       });
@@ -250,7 +294,7 @@
     if (/\b(casas?|viviendas?|chalet|casita)\b/.test(m)) T.push('casa');
     if (/\b(departamentos?|dptos?|depas?|deptos?|duplex|flat|minidepartamento)\b/.test(m)) T.push('departamento');
     if (/\b(terrenos?|lotes?|parcelas?|solares?|predios?|chacras?|fundo)\b/.test(m)) T.push('terreno');
-    if (/\b(locales?|tiendas?|oficinas?|comercial(es)?|galeria|stand)\b/.test(m)) T.push('local');
+    if (/\b(local(es)?|tiendas?|oficinas?|comercial(es)?|galeria|stands?|almacen(es)?)\b/.test(m)) T.push('local');
     if (/\b(estacionamientos?|cocheras?|garaje)\b/.test(m)) T.push('estacionamiento');
     if (!T.length) {
       if (/para vivir|donde vivir|mi familia|mudarme|mudarnos|primera vivienda|un hogar|algo para vivir/.test(m)) { T = ['casa', 'departamento']; o.uso = 'para vivir'; }
@@ -275,14 +319,17 @@
       p = p.replace(' ' + t + ' ', '  #  ');
     }
     if (lug.length) o.lug = lug;
+    if (/\bsunat\b|tributari/.test(m)) o.src = 'sunat'; else if (/indecopi/.test(m)) o.src = 'indecopi'; else if (/remaju|poder judicial|judiciales/.test(m)) o.src = 'pj';
+    if (/todas las (entidades|fuentes)|de todos|todas las instituciones/.test(m)) o.todas = true;
     o.generico = /\b(busco|buscando|quiero|quisiera|necesito|me interesa|hay|tienes|tienen|propiedad(es)?|inmuebles?|comprar|invertir|inversion|algo)\b/.test(m);
     return o;
   }
-  function tiene(o) { return o.lug || o.tipo || o.mon || o.min != null || o.max != null || o.area != null || o.sc || o.ord; }
+  function tiene(o) { return o.lug || o.tipo || o.mon || o.min != null || o.max != null || o.area != null || o.sc || o.ord || o.src; }
 
   /* ================= búsqueda ================= */
   function coincide(r, f, scope) {
-    if (f.tipo && f.tipo.length && f.tipo.indexOf(tipo(r)) < 0) return false;
+    if (f.src && src(r) !== f.src) return false;
+    if (f.tipo && f.tipo.length) { var tr = tipo(r); if (f.tipo.indexOf(tr) < 0 && !(tr === 'otro' && src(r) !== 'pj' && f.tipo.indexOf('casa') >= 0)) return false; }
     if (f.mon && mon(r) !== f.mon) return false;
     var b = num(r[3]);
     if (f.min != null && (b === null || b < f.min)) return false;
@@ -294,7 +341,7 @@
     return true;
   }
   function buscar(f, scope) {
-    var out = D.remates.filter(function (r) { return coincide(r, f, scope); }), ord = f.ord || 'rec';
+    var out = D.todos.filter(function (r) { return coincide(r, f, scope); }), ord = f.ord || 'rec';
     out.sort(function (x, y) {
       if (ord === 'asc') return (num(x[3]) || 0) - (num(y[3]) || 0);
       if (ord === 'desc') return (num(y[3]) || 0) - (num(x[3]) || 0);
@@ -314,16 +361,17 @@
     if (f.sc) p.push('sin cargas declaradas');
     return p.join(', ');
   }
-  function resumenFiltro(f) { return [que(f), f.lug ? 'en ' + nombreLugar(f) : '', precioTxt(f)].filter(Boolean).join(' '); }
+  function nomFuente(k) { for (var i = 0; i < FUENTES.length; i++) if (FUENTES[i][0] === k) return FUENTES[i][1]; return ''; }
+  function resumenFiltro(f) { return [que(f), f.src ? 'de ' + nomFuente(f.src) : '', f.lug ? 'en ' + nombreLugar(f) : '', precioTxt(f)].filter(Boolean).join(' '); }
 
   /* ================= interfaz ================= */
   function css() {
     var s = document.createElement('style');
-    s.textContent = '.rb-l{position:fixed;right:16px;bottom:16px;z-index:55;display:flex;align-items:center;gap:0;cursor:pointer;border:0;background:none;padding:0;font-family:Inter,system-ui,sans-serif}.rb-av{position:relative;z-index:1;width:124px;height:124px;flex:none}.rb-av:before,.rb-av:after{content:"";position:absolute;left:50%;top:54%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;background:radial-gradient(circle,rgba(255,159,28,.55),rgba(255,159,28,0) 70%);animation:rbp 2.4s ease-out infinite}.rb-av:after{animation-delay:1.2s}@keyframes rbp{0%{transform:scale(.7);opacity:.9}100%{transform:scale(1.7);opacity:0}}.rb-av img{position:relative;z-index:1;width:124px;height:124px;filter:drop-shadow(0 8px 12px rgba(0,0,0,.4));animation:rbf 3s ease-in-out infinite,rbw 7s ease-in-out infinite;transform-origin:50% 90%}@keyframes rbf{50%{translate:0 -8px}}@keyframes rbw{0%,82%,100%{rotate:0deg}86%{rotate:-9deg}90%{rotate:8deg}94%{rotate:-5deg}}.rb-dot{position:absolute;z-index:2;right:14px;top:10px;min-width:24px;height:24px;border-radius:12px;background:#E5352B;color:#fff;font:700 13px/24px Inter,system-ui,sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}.rb-b{background:#FF9F1C;color:#14213D;border-radius:30px;padding:13px 34px 13px 22px;margin-right:-26px;box-shadow:0 6px 18px rgba(0,0,0,.32);text-align:left;line-height:1.25;border:2px solid #fff}.rb-b small{display:block;font-size:12.5px;font-weight:600;opacity:.85}.rb-b b{display:block;font-size:17px;font-weight:700}.rb-l:hover .rb-b{background:#FFB347}.rb-l:hover .rb-av img{scale:1.06}@media(max-width:520px){.rb-l{right:8px;bottom:10px}.rb-av,.rb-av img{width:96px;height:96px}.rb-b{padding:10px 28px 10px 16px;margin-right:-22px}.rb-b b{font-size:15px}.rb-b small{font-size:11.5px}}@media(prefers-reduced-motion:reduce){.rb-av img,.rb-av:before,.rb-av:after{animation:none}}.rb-p{position:fixed;right:14px;bottom:14px;z-index:70;width:min(400px,calc(100vw - 28px));height:min(600px,calc(100vh - 28px));background:#fff;border:1px solid #C3C9D4;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.35);display:none;flex-direction:column;overflow:hidden;font:14px/1.45 Inter,system-ui,sans-serif;color:#0E1216}.rb-p.on{display:flex}.rb-h{background:linear-gradient(135deg,#20397A,#2A4A9C);color:#fff;padding:10px 12px;display:flex;align-items:center;gap:10px}.rb-h img{width:44px;height:44px;background:#fff;border-radius:50%;padding:3px}.rb-h b{display:block;font-size:15px}.rb-h span{font-size:11.5px;opacity:.9}.rb-x{margin-left:auto;background:none;border:0;color:#fff;font-size:24px;cursor:pointer;line-height:1}.rb-m{flex:1;overflow-y:auto;padding:12px;background:#F2F5FB;display:flex;flex-direction:column;gap:8px}.rb-r,.rb-u{max-width:90%;padding:9px 12px;border-radius:14px;word-wrap:break-word}.rb-r{background:#fff;border:1px solid #DFE3EA;align-self:flex-start;border-bottom-left-radius:4px}.rb-r.rb-s{background:#E5EAF6;border-color:#C9D3EC;color:#20397A;font-style:italic}.rb-u{background:#2A4A9C;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}.rb-r a{color:#20397A;font-weight:600}.rb-it{border:1px solid #DFE3EA;border-left:3px solid #5C78C0;background:#fff;padding:8px 10px;margin:6px 0;border-radius:6px;font-size:13px}.rb-it b{color:#20397A}.rb-it .t{font-size:15px;font-weight:600}.rb-it .z{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap}.rb-it .z a{font-size:12.5px}.rb-ch{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;background:#F2F5FB}.rb-ch button{border:1px solid #2A4A9C;color:#2A4A9C;background:#fff;border-radius:16px;padding:5px 11px;font:600 12.5px Inter,system-ui,sans-serif;cursor:pointer}.rb-ch button:hover{background:#E5EAF6}.rb-f{display:flex;gap:6px;padding:8px;border-top:1px solid #DFE3EA;background:#fff}.rb-f input{flex:1;padding:10px 12px;border:1px solid #C3C9D4;border-radius:20px;font:inherit;min-width:0}.rb-f button{background:#2A4A9C;color:#fff;border:0;border-radius:20px;padding:0 16px;font:600 14px Inter,system-ui,sans-serif;cursor:pointer}.rb-n{font-size:11px;color:#5A6470;padding:0 12px 8px;background:#fff;text-align:center}.rb-d{display:inline-block;width:6px;height:6px;border-radius:50%;background:#8FA4D8;margin:0 2px;animation:rbd 1s infinite}.rb-d:nth-child(2){animation-delay:.2s}.rb-d:nth-child(3){animation-delay:.4s}@keyframes rbd{50%{opacity:.25}}@media print{.rb-l,.rb-p{display:none}}';
+    s.textContent = '.rb-l{position:fixed;right:16px;bottom:16px;z-index:55;display:flex;align-items:center;gap:0;cursor:pointer;border:0;background:none;padding:0;font-family:Inter,system-ui,sans-serif}.rb-av{position:relative;z-index:1;width:124px;height:124px;flex:none}.rb-av:before,.rb-av:after{content:"";position:absolute;left:50%;top:54%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;background:radial-gradient(circle,rgba(255,159,28,.55),rgba(255,159,28,0) 70%);animation:rbp 2.4s ease-out infinite}.rb-av:after{animation-delay:1.2s}@keyframes rbp{0%{transform:scale(.7);opacity:.9}100%{transform:scale(1.7);opacity:0}}.rb-av img{position:relative;z-index:1;width:124px;height:124px;filter:drop-shadow(0 8px 12px rgba(0,0,0,.4));animation:rbf 3s ease-in-out infinite,rbw 7s ease-in-out infinite;transform-origin:50% 90%}@keyframes rbf{50%{translate:0 -8px}}@keyframes rbw{0%,82%,100%{rotate:0deg}86%{rotate:-9deg}90%{rotate:8deg}94%{rotate:-5deg}}.rb-dot{position:absolute;z-index:2;right:14px;top:10px;min-width:24px;height:24px;border-radius:12px;background:#E5352B;color:#fff;font:700 13px/24px Inter,system-ui,sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}.rb-b{background:#FF9F1C;color:#14213D;border-radius:30px;padding:13px 34px 13px 22px;margin-right:-26px;box-shadow:0 6px 18px rgba(0,0,0,.32);text-align:left;line-height:1.25;border:2px solid #fff}.rb-b small{display:block;font-size:12.5px;font-weight:600;opacity:.85}.rb-b b{display:block;font-size:17px;font-weight:700}.rb-l:hover .rb-b{background:#FFB347}.rb-l:hover .rb-av img{scale:1.06}@media(max-width:520px){.rb-l{right:8px;bottom:10px}.rb-av,.rb-av img{width:96px;height:96px}.rb-b{padding:10px 28px 10px 16px;margin-right:-22px}.rb-b b{font-size:15px}.rb-b small{font-size:11.5px}}@media(prefers-reduced-motion:reduce){.rb-av img,.rb-av:before,.rb-av:after{animation:none}}.rb-p{position:fixed;right:14px;bottom:14px;z-index:70;width:min(400px,calc(100vw - 28px));height:min(600px,calc(100vh - 28px));background:#fff;border:1px solid #C3C9D4;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.35);display:none;flex-direction:column;overflow:hidden;font:14px/1.45 Inter,system-ui,sans-serif;color:#0E1216}.rb-p.on{display:flex}.rb-h{background:linear-gradient(135deg,#20397A,#2A4A9C);color:#fff;padding:10px 12px;display:flex;align-items:center;gap:10px}.rb-h img{width:44px;height:44px;background:#fff;border-radius:50%;padding:3px}.rb-h b{display:block;font-size:15px}.rb-h span{font-size:11.5px;opacity:.9}.rb-x{margin-left:auto;background:none;border:0;color:#fff;font-size:24px;cursor:pointer;line-height:1}.rb-m{flex:1;overflow-y:auto;padding:12px;background:#F2F5FB;display:flex;flex-direction:column;gap:8px}.rb-r,.rb-u{max-width:90%;padding:9px 12px;border-radius:14px;word-wrap:break-word}.rb-r{background:#fff;border:1px solid #DFE3EA;align-self:flex-start;border-bottom-left-radius:4px}.rb-r.rb-s{background:#E5EAF6;border-color:#C9D3EC;color:#20397A;font-style:italic}.rb-u{background:#2A4A9C;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}.rb-r a{color:#20397A;font-weight:600}.rb-it{border:1px solid #DFE3EA;border-left:3px solid #5C78C0;background:#fff;padding:8px 10px;margin:6px 0;border-radius:6px;font-size:13px}.rb-it b{color:#20397A}.rb-it .t{font-size:15px;font-weight:600}.rb-it .z{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap}.rb-it .z a{font-size:12.5px}.rb-g{margin:12px 0 2px;padding:6px 10px;border-radius:8px;font-weight:700;font-size:13px;color:#fff;background:#20397A;display:flex;justify-content:space-between;align-items:center}.rb-g.s{background:#0B6B4F}.rb-g.i{background:#7A3E00}.rb-g small{font-weight:600;opacity:.9}.rb-it.s{border-left-color:#0B6B4F}.rb-it.i{border-left-color:#B25E00}.rb-ch{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;background:#F2F5FB}.rb-ch button{border:1px solid #2A4A9C;color:#2A4A9C;background:#fff;border-radius:16px;padding:5px 11px;font:600 12.5px Inter,system-ui,sans-serif;cursor:pointer}.rb-ch button:hover{background:#E5EAF6}.rb-f{display:flex;gap:6px;padding:8px;border-top:1px solid #DFE3EA;background:#fff}.rb-f input{flex:1;padding:10px 12px;border:1px solid #C3C9D4;border-radius:20px;font:inherit;min-width:0}.rb-f button{background:#2A4A9C;color:#fff;border:0;border-radius:20px;padding:0 16px;font:600 14px Inter,system-ui,sans-serif;cursor:pointer}.rb-n{font-size:11px;color:#5A6470;padding:0 12px 8px;background:#fff;text-align:center}.rb-d{display:inline-block;width:6px;height:6px;border-radius:50%;background:#8FA4D8;margin:0 2px;animation:rbd 1s infinite}.rb-d:nth-child(2){animation-delay:.2s}.rb-d:nth-child(3){animation-delay:.4s}@keyframes rbd{50%{opacity:.25}}@media print{.rb-l,.rb-p{display:none}}';
     document.head.appendChild(s);
   }
   function guardar() {
-    try { sessionStorage.setItem(SS, JSON.stringify({ h: els.m.innerHTML, c: els.chips || [], F: F, ids: last ? last.map(function (r) { return r[0]; }) : null, shown: shown, open: !!els.abierto })); } catch (e) { }
+    try { sessionStorage.setItem(SS, JSON.stringify({ h: els.m.innerHTML, c: els.chips || [], F: F, ids: last ? last.map(function (r) { return r[0]; }) : null, lg: LG ? { pj: LG.pj.map(function (r) { return r[0]; }), sunat: LG.sunat.map(function (r) { return r[0]; }), indecopi: LG.indecopi.map(function (r) { return r[0]; }) } : null, sh: SH, shown: shown, open: !!els.abierto })); } catch (e) { }
   }
   function build() {
     css();
@@ -331,7 +379,7 @@
     l.innerHTML = '<span class="rb-b"><small>¿Buscas un remate?</small><b>Conversa con Robotín</b></span><span class="rb-av"><img src="' + BASE + 'robotin/robotin.png" alt="" width="124" height="124"><span class="rb-dot" id="rb-dot">1</span></span>';
     document.body.appendChild(l); els.l = l;
     var p = document.createElement('div'); p.className = 'rb-p'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', 'Chat con Robotín');
-    p.innerHTML = '<div class="rb-h"><img src="' + BASE + 'robotin/robotin-s.png" alt=""><div><b>Robotín</b><span>Asistente automático de remates judiciales</span></div><button class="rb-x" aria-label="Cerrar">×</button></div><div class="rb-m" id="rb-m" aria-live="polite"></div><div class="rb-ch" id="rb-ch"></div><form class="rb-f"><input id="rb-i" type="text" placeholder="Ej.: busco propiedades en Lince" autocomplete="off" aria-label="Escribe tu consulta"><button type="submit">Enviar</button></form><div class="rb-n">Respuestas automáticas con datos de REMAJU. Referencial, no es asesoría legal. Lo que escribes no se envía a ningún servidor.</div>';
+    p.innerHTML = '<div class="rb-h"><img src="' + BASE + 'robotin/robotin-s.png" alt=""><div><b>Robotín</b><span>Asistente de remates · Poder Judicial, SUNAT e INDECOPI</span></div><button class="rb-x" aria-label="Cerrar">×</button></div><div class="rb-m" id="rb-m" aria-live="polite"></div><div class="rb-ch" id="rb-ch"></div><form class="rb-f"><input id="rb-i" type="text" placeholder="Ej.: busco propiedades en Lince" autocomplete="off" aria-label="Escribe tu consulta"><button type="submit">Enviar</button></form><div class="rb-n">Respuestas automáticas con datos de REMAJU, SUNAT e INDECOPI. Referencial, no es asesoría legal. Lo que escribes no se envía a ningún servidor.</div>';
     document.body.appendChild(p); els.p = p; els.m = p.querySelector('#rb-m'); els.ch = p.querySelector('#rb-ch'); els.i = p.querySelector('#rb-i');
     l.addEventListener('click', abrir);
     document.addEventListener('click', function (e) { var t = e.target.closest && e.target.closest('[data-robotin-open],[data-robotin-q]'); if (!t) return; e.preventDefault(); var q = t.getAttribute('data-robotin-q'); abrir(); if (q) setTimeout(function () { enviar(q, t.textContent); }, els.m.children.length ? 100 : 1500); });
@@ -348,7 +396,7 @@
       var st = JSON.parse(sessionStorage.getItem(SS) || 'null');
       if (st && st.h) {
         els.m.innerHTML = st.h; F = st.F || {}; shown = st.shown || 0; chips(st.c);
-        load().then(function () { if (st.ids) { var by = {}; D.remates.forEach(function (r) { by[r[0]] = r; }); last = st.ids.map(function (i) { return by[i]; }).filter(Boolean); } });
+        load().then(function () { var by = {}; D.todos.forEach(function (r) { by[r[0]] = r; }); var mp = function (a) { return (a || []).map(function (i) { return by[i]; }).filter(Boolean); }; if (st.ids) last = mp(st.ids); if (st.lg) { LG = { pj: mp(st.lg.pj), sunat: mp(st.lg.sunat), indecopi: mp(st.lg.indecopi) }; SH = st.sh || {}; } });
         if (st.open) abrir();
       }
     } catch (e) { }
@@ -380,30 +428,67 @@
     var a = document.createElement('div'); a.className = 'rb-r rb-s'; a.innerHTML = aviso; els.m.appendChild(a); scroll();
     setTimeout(function () { var r = fn(); var t = burbuja(); setTimeout(function () { t.innerHTML = r[0]; chips(r[1]); els.m.scrollTop = Math.max(0, a.offsetTop - 8); guardar(); }, 700); }, 350);
   }
-  var CH_INICIO = [['Casas en Lima', 'casa en lima'], ['Departamentos en Lima', 'departamento en lima'], ['Terrenos', 'busco terrenos'], ['En provincias', 'propiedades en provincias'], ['Lo más barato', 'lo más barato en soles'], ['¿Dónde hay remates?', 'donde hay remates'], ['¿Cómo funciona?', 'como funciona un remate']];
+  var CH_INICIO = [['Casas en Lima', 'casa en lima'], ['Departamentos en Lima', 'departamento en lima'], ['Terrenos', 'busco terrenos'], ['En provincias', 'propiedades en provincias'], ['Remates de SUNAT', 'remates de sunat'], ['Lo más barato', 'lo más barato en soles'], ['¿Dónde hay remates?', 'donde hay remates'], ['¿Cómo funciona?', 'como funciona un remate']];
   function inicio() {
     var u = D.ediciones.filter(function (e) { return e.fecha === D.ult; })[0];
-    say('¡Hola! Soy <b>Robotín</b>, el asistente automático de los remates judiciales de Víctor Ventura. Tengo <b>' + D.remates.length + ' remates</b> publicados en ' + D.ediciones.length + ' ediciones; la última es del <a href="' + BASE + D.ult + '/">' + fdate(D.ult) + '</a>' + (u ? ' (' + esc(u.resumen.split('·')[0].trim()) + ')' : '') + '.<br><br>Cuéntame con tus palabras qué buscas y dónde. Por ejemplo: <i>«busco propiedades en Lince»</i> o <i>«una casa para vivir en Trujillo hasta 100 mil dólares»</i>. Si no hay nada exacto, te muestro lo más cercano.', 600, CH_INICIO);
+    var ot = D.sunat.length ? ', <b>' + D.sunat.length + ' inmuebles en remate de SUNAT</b>' : '';
+    ot += D.inde.length ? ' y <b>' + D.inde.length + ' de INDECOPI</b>' : ' y reviso los catálogos de INDECOPI';
+    say('¡Hola! Soy <b>Robotín</b>, el asistente automático de remates de Víctor Ventura. Conozco todo lo publicado en esta página: <b>' + D.remates.length + ' remates del Poder Judicial (REMAJU)</b>' + ot + '. La última edición judicial es del <a href="' + BASE + D.ult + '/">' + fdate(D.ult) + '</a>' + (u ? ' (' + esc(u.resumen.split('·')[0].trim()) + ')' : '') + '.<br><br>Cuéntame con tus palabras qué buscas y dónde, por ejemplo <i>«busco propiedades en Lima»</i> o <i>«una casa en Piura hasta 300 mil soles»</i>. Te mostraré lo que haya en cada entidad, por separado; y si no hay nada exacto, lo más cercano.', 600, CH_INICIO);
   }
 
   /* ================= respuestas ================= */
+  function fcorta(f) { var p = f.split('-'), m = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic']; return parseInt(p[2], 10) + ' ' + m[parseInt(p[1], 10) - 1]; }
   function item(r) {
-    var a = area(r), c = (r[13] || '').trim(), sin = /ninguna declarada/i.test(c);
-    return '<div class="rb-it"><div><b>N.° ' + esc(r[0]) + '</b> · ' + esc(r[1]) + '</div><div>' + esc(r[2]) + (a && r[2].indexOf('m²') < 0 ? ' · ' + a.toLocaleString('en-US') + ' m²' : '') + '</div><div class="t">Base ' + esc(money(r)) + '</div><div style="color:#5A6470">' + (sin ? 'Sin cargas declaradas' : 'Con cargas: ' + esc(c.length > 90 ? c.slice(0, 88) + '…' : c)) + ' · edición ' + fdate(r[4]) + '</div><div class="z"><a href="' + link(r) + '">Ver ficha</a><a href="#" data-rb="servicios ' + esc(r[0]) + '">Servicios y consulta</a></div></div>';
+    var a = area(r), c = (r[13] || '').trim(), sin = /ninguna declarada/i.test(c), s = src(r), x = r[16] || {};
+    if (s === 'pj') return '<div class="rb-it"><div><b>N.° ' + esc(r[0]) + '</b> · ' + esc(r[1]) + '</div><div>' + esc(r[2]) + (a && r[2].indexOf('m²') < 0 ? ' · ' + a.toLocaleString('en-US') + ' m²' : '') + '</div><div class="t">Base ' + esc(money(r)) + '</div><div style="color:#5A6470">' + (sin ? 'Sin cargas declaradas' : 'Con cargas: ' + esc(c.length > 90 ? c.slice(0, 88) + '…' : c)) + ' · edición ' + fdate(r[4]) + '</div><div class="z"><a href="' + link(r) + '">Ver ficha</a><a href="#" data-rb="servicios ' + esc(r[0]) + '">Servicios y consulta</a></div></div>';
+    var tit = r[14] || '', corto = tit.length > 120 ? tit.slice(0, 118) + '…' : tit, ent = s === 'sunat' ? 'SUNAT' : 'INDECOPI';
+    var msg = 'Hola Víctor, quiero apoyo con un remate de ' + ent + '.\nRemate ' + ent + (s === 'sunat' ? ' N.°: ' + x.n : ': ítem ' + x.n) + ' (' + r[4].split('-').reverse().join('/') + ', ' + r[1] + ')\nInmueble: ' + tit.slice(0, 140) + (r[10] ? '\nPartida electrónica: ' + r[10] : '');
+    return '<div class="rb-it ' + (s === 'sunat' ? 's' : 'i') + '"><div><b>' + ent + (s === 'sunat' ? ' N.° ' + esc(x.n) : ' · ítem ' + esc(x.n)) + '</b> · ' + esc(r[1]) + '</div><div>' + esc(r[2]) + (x.acc ? ' · ' + esc(x.acc) + ' de acciones y derechos' : '') + (a ? ' · ' + a.toLocaleString('en-US') + ' m²' : '') + '</div><div style="font-size:12.5px;color:#444C55">' + esc(corto) + '</div><div class="t">Base ' + esc(r[3] ? r[3].replace(/\.00$/, '') : 'por confirmar') + '</div><div style="color:#5A6470">Remate: <b style="color:#0E1216">' + fcorta(r[4]) + (x.hora ? ', ' + esc(x.hora) : '') + '</b>' + (x.conv ? ' · ' + esc(x.conv) + ' convocatoria' : '') + (c ? ' · Cargas: ' + esc(c.charAt(0).toLowerCase() + c.slice(1)) : '') + '</div><div class="z">' + (s === 'sunat' ? '<a href="' + BASE + 'sunat/#s' + esc(x.n) + '">Ver en la lista</a>' : '<a href="' + BASE + 'indecopi/">Ver en la lista</a>') + (x.url ? '<a target="_blank" rel="noopener" href="' + esc(x.url) + '">Aviso oficial</a>' : '') + '<a target="_blank" rel="noopener" href="' + wa(msg) + '">Consultar con Víctor</a></div></div>';
   }
-  var PIE = '<small style="color:#5A6470">Información referencial de REMAJU. Verifica la partida en SUNARP, la posesión y las bases antes de ofertar.</small>';
-  function mostrar(list, desde, extra) {
-    var pg = list.slice(desde, desde + 5), h = '';
-    pg.forEach(function (r) { h += item(r); });
-    shown = desde + pg.length;
-    var c = [];
-    if (shown < list.length) c.push(['Ver más (' + (list.length - shown) + ')', 'ver mas']);
-    (extra || []).forEach(function (x) { c.push(x); });
+  var PIE = '<small style="color:#5A6470">Información referencial de REMAJU, SUNAT e INDECOPI. Verifica el aviso oficial, la partida en SUNARP, la posesión y las bases antes de ofertar.</small>';
+  function agrupa(list) {
+    var g = { pj: [], sunat: [], indecopi: [] };
+    list.forEach(function (r) { g[src(r)].push(r); });
+    if (F.ord !== 'asc' && F.ord !== 'desc' && F.ord !== 'area') ['sunat', 'indecopi'].forEach(function (k) { g[k].sort(function (a, b) { return a[4] < b[4] ? -1 : a[4] > b[4] ? 1 : ((a[16] || {}).hora || '') < ((b[16] || {}).hora || '') ? -1 : 1; }); });
+    return g;
+  }
+  function chipsBase(c) {
     if (!F.sc) c.push(['Solo sin cargas', 'solo sin cargas']);
     if (F.ord !== 'asc') c.push(['Más barato', 'lo mas barato']);
     if (!c.some(function (x) { return x[1] === 'abrir alertas'; })) c.push(['Crear alerta con esto', 'abrir alertas']);
     c.push(['Nueva búsqueda', 'empezar de nuevo']);
-    return [h, c];
+    return c;
+  }
+  function chipsMas() { var c = []; FUENTES.forEach(function (fu) { var k = fu[0], n = LG && LG[k] ? LG[k].length - (SH[k] || 0) : 0; if (n > 0) c.push(['Más de ' + fu[2] + ' (' + n + ')', 'ver mas ' + k]); }); return c; }
+  // Muestra los resultados separados por entidad: Poder Judicial (REMAJU), SUNAT e INDECOPI
+  function mostrarGrupos(list, extra) {
+    LG = agrupa(list); SH = {}; last = list; shown = 0;
+    var con = FUENTES.filter(function (fu) { return LG[fu[0]].length; }), por = con.length > 1 ? 3 : 5, h = '';
+    con.forEach(function (fu) {
+      var k = fu[0], l = LG[k], pg = l.slice(0, por);
+      h += '<div class="rb-g' + (k === 'sunat' ? ' s' : k === 'indecopi' ? ' i' : '') + '"><span>' + fu[1] + '</span><small>' + l.length + (l.length === 1 ? ' remate' : ' remates') + '</small></div>';
+      pg.forEach(function (r) { h += item(r); }); SH[k] = pg.length;
+    });
+    var c = chipsMas(); (extra || []).forEach(function (x) { c.push(x); });
+    return [h, chipsBase(c)];
+  }
+  function verMas(k) {
+    if (!LG) return null;
+    if (!k) { for (var i = 0; i < FUENTES.length; i++) if (LG[FUENTES[i][0]].length > (SH[FUENTES[i][0]] || 0)) { k = FUENTES[i][0]; break; } }
+    if (!k || !LG[k] || LG[k].length <= (SH[k] || 0)) return null;
+    var d = SH[k] || 0, pg = LG[k].slice(d, d + 5), h = '<div class="rb-g' + (k === 'sunat' ? ' s' : k === 'indecopi' ? ' i' : '') + '"><span>' + nomFuente(k) + '</span><small>' + (d + 1) + ' a ' + (d + pg.length) + ' de ' + LG[k].length + '</small></div>';
+    pg.forEach(function (r) { h += item(r); }); SH[k] = d + pg.length;
+    return [h, chipsBase(chipsMas())];
+  }
+  // «3 del Poder Judicial (REMAJU) y 2 de SUNAT. En INDECOPI no hay…»
+  function conteo(list, f) {
+    var g = { pj: 0, sunat: 0, indecopi: 0 }; list.forEach(function (r) { g[src(r)]++; });
+    if (f.src) return '';
+    var si = [], no = [];
+    FUENTES.forEach(function (fu) { if (g[fu[0]]) si.push('<b>' + g[fu[0]] + '</b> ' + (fu[0] === 'pj' ? 'del ' : 'de ') + fu[1]); else no.push(fu[0]); });
+    var t = si.length > 1 ? si.slice(0, -1).join(', ') + ' y ' + si[si.length - 1] : '', n = [], uno = FUENTES.filter(function (fu) { return g[fu[0]]; })[0];
+    no.forEach(function (k) { if (k === 'indecopi' && !D.inde.length) n.push('INDECOPI no tiene un remate comunicado por ahora'); else n.push('en ' + (k === 'pj' ? 'el ' : '') + nomFuente(k) + ' no hay coincidencias'); });
+    return (si.length > 1 ? ' Son ' + t + '.' : (list.length === 1 ? ' Es ' : ' Todos son ') + (uno[0] === 'pj' ? 'del ' : 'de ') + '<b>' + uno[1] + '</b>.') + (n.length ? ' <small style="color:#5A6470">(' + n.join('; ') + '.)</small>' : '');
   }
   function ordenTxt(f, n) { return n > 5 ? ' Te muestro ' + (f.ord === 'asc' ? 'los más baratos' : f.ord === 'desc' ? 'los de mayor base' : f.ord === 'area' ? 'los de mayor área' : 'los más recientes') + ':' : ''; }
   function cuantos(n) { return n === 1 ? 'este remate' : 'estos <b>' + n + '</b>'; }
@@ -413,24 +498,25 @@
   function resolver(f, nota) {
     var list = buscar(f), pl = f.lug && f.lug[0], lugar = f.lug ? nombreLugar(f) : '', n;
     shown = 0;
+    if (f.src === 'indecopi' && !D.inde.length) { var hi = D.indeInfo && D.indeInfo.historial && D.indeInfo.historial[0]; LG = null; last = null; return ['<b>INDECOPI no tiene un remate comunicado en este momento.</b> Publica su catálogo pocos días antes de cada remate' + (hi ? '; el último fue el ' + fdate(hi.fecha_remate) + ' (comunicado el ' + fdate(hi.fecha_comunicacion) + ')' : '') + '. Reviso su página de lunes a viernes: cuando salga uno lo verás en <a href="' + BASE + 'indecopi/">la sección de INDECOPI</a> y aquí mismo. Mientras tanto puedo buscarte en el Poder Judicial y en SUNAT.', [['Buscar en todas las entidades', 'propiedades de todas las entidades'], ['Remates de SUNAT', 'remates de sunat'], ['Crear alerta', 'abrir alertas']]]; }
     if (list.length) {
-      last = list; var r = mostrar(list, 0), ex = '';
+      var r = mostrarGrupos(list), ex = '';
       if (pl && pl.k === 'dist') { var hom = D.remates.filter(function (x) { var g = G[x[0]]; return !g.metro && g.parts.indexOf(pl.key) >= 0; }); if (hom.length) ex = ' <small>(Hay otro lugar llamado ' + esc(pl.n) + ' fuera de Lima con ' + hom.length + ' remate' + (hom.length > 1 ? 's' : '') + '; si te referías a ese, dime la región.)</small>'; }
-      return ['Sí, encontré <b>' + list.length + '</b> ' + (list.length === 1 ? 'remate' : 'remates') + ': ' + esc(resumenFiltro(f)) + '.' + (nota ? ' ' + nota : '') + ex + ordenTxt(f, list.length) + r[0] + PIE, r[1]];
+      return ['Sí, encontré <b>' + list.length + '</b> ' + (list.length === 1 ? 'remate' : 'remates') + ' de ' + esc(resumenFiltro(f)) + '.' + conteo(list, f) + (nota ? ' ' + nota : '') + ex + ' A continuación te los muestro' + (f.src ? '' : ' por entidad') + ':' + r[0] + PIE, r[1]];
     }
     var otros = (f.tipo && f.tipo.length) || f.min != null || f.max != null || f.area != null || f.sc || f.mon;
     var levels = pl ? niveles(pl) : [], i, lv, alt;
-    var todoLugar = pl ? buscar({ lug: f.lug }).length : 0;
+    var todoLugar = pl ? buscar({ lug: f.lug, src: f.src }).length : 0;
     var extra = [];
     if (pl && todoLugar) extra.push(['Ver todo en ' + pl.n + ' (' + todoLugar + ')', 'todo lugar']);
     if (pl) extra.push(['Avísame si sale algo en ' + pl.n, 'abrir alertas']);
-    var noHay = pl ? 'En estos días no hay remates publicados de <b>' + esc(que(f)) + '</b> en <b>' + esc(lugar) + '</b>' + (precioTxt(f) ? ' ' + esc(precioTxt(f)) : '') + '.' : 'No encontré remates de <b>' + esc(resumenFiltro(f)) + '</b> entre los publicados.';
+    var noHay = pl ? 'En estos días no hay remates publicados de <b>' + esc(que(f)) + '</b>' + (f.src ? ' de ' + nomFuente(f.src) : '') + ' en <b>' + esc(lugar) + '</b>' + (precioTxt(f) ? ' ' + esc(precioTxt(f)) : '') + '.' : 'No encontré remates de <b>' + esc(resumenFiltro(f)) + '</b> entre los publicados.';
     // 1) mismo pedido, lugares cercanos
     for (i = 0; i < levels.length; i++) {
       lv = levels[i]; alt = buscar(f, lv.t);
       if (alt.length) {
-        last = alt; var r1 = mostrar(alt, 0, extra), ex1 = explica(pl), dnd = lv.l + (lv.v ? ' (' + regionesCon(alt, lv.v) + ')' : '');
-        return [noHay + ' ' + (ex1 ? 'Pero como ' + ex1 + ', ' : 'Pero ') + (alt.length === 1 ? 'te puede interesar' : 'te pueden interesar') + ' ' + cuantos(alt.length) + ' ' + dnd + ':' + r1[0] + PIE, r1[1]];
+        var r1 = mostrarGrupos(alt, extra), ex1 = explica(pl), dnd = lv.l + (lv.v ? ' (' + regionesCon(alt, lv.v) + ')' : '');
+        return [noHay + ' ' + (ex1 ? 'Pero como ' + ex1 + ', ' : 'Pero ') + (alt.length === 1 ? 'te puede interesar' : 'te pueden interesar') + ' ' + cuantos(alt.length) + ' ' + dnd + '.' + conteo(alt, f) + r1[0] + PIE, r1[1]];
       }
     }
     // 2) mismo lugar (y luego cercanos), flexibilizando el pedido
@@ -438,18 +524,18 @@
     if (f.max != null || f.min != null) { var g1 = clon(f); if (g1.max != null) g1.max = g1.max * 1.25; if (g1.min != null) g1.min = g1.min * 0.75; relax.push([g1, 'ajustando un poco el presupuesto (' + precioTxt({ mon: g1.mon, min: g1.min, max: g1.max }).replace('con base ', '') + ')']); }
     if (f.tipo && f.tipo.length) { var g2 = clon(f); delete g2.tipo; relax.push([g2, 'de otros tipos de inmueble']); }
     if (f.area != null || f.sc) { var g3 = clon(f); delete g3.area; delete g3.sc; relax.push([g3, 'sin exigir ' + [f.area != null ? 'esa área' : '', f.sc ? 'que estén libres de cargas' : ''].filter(Boolean).join(' ni ')]); }
-    if (otros) { var g4 = { lug: f.lug, ord: f.ord }; relax.push([g4, 'con otras características']); }
+    if (otros) { var g4 = { lug: f.lug, ord: f.ord, src: f.src }; relax.push([g4, 'con otras características']); }
     var scopes = [null].concat(levels);
     for (var j = 0; j < relax.length; j++) for (i = 0; i < scopes.length; i++) {
       lv = scopes[i]; alt = lv ? buscar(relax[j][0], lv.t) : buscar(relax[j][0]);
       if (alt.length) {
-        last = alt; var r2 = mostrar(alt, 0, extra);
+        var r2 = mostrarGrupos(alt, extra);
         var donde = !pl ? '' : lv ? ' ' + lv.l + (lv.v ? ' (' + regionesCon(alt, lv.v) + ')' : '') : ' en ' + esc(lugar);
-        return [noHay + ' Lo más aproximado que tengo ' + (alt.length === 1 ? 'es' : 'son') + ' ' + cuantos(alt.length) + ' ' + relax[j][1] + donde + ':' + r2[0] + PIE, r2[1]];
+        return [noHay + ' Lo más aproximado que tengo ' + (alt.length === 1 ? 'es' : 'son') + ' ' + cuantos(alt.length) + ' ' + relax[j][1] + donde + '.' + conteo(alt, f) + r2[0] + PIE, r2[1]];
       }
     }
     // 3) nada parecido
-    var rec = buscar({ ord: 'rec' }).slice(0, 3); last = rec; n = '';
+    var rec = buscar({ ord: 'rec', src: 'pj' }).slice(0, 3); last = rec; LG = null; n = '';
     rec.forEach(function (x) { n += item(x); }); shown = rec.length;
     return [noHay + ' Tampoco encontré algo parecido cerca. Puedes <b>crear una alerta</b> y Víctor te avisa cuando salga uno. Mientras tanto, estos son los más recientes:' + n + PIE, [['Crear alerta con esto', 'abrir alertas'], ['¿Dónde hay remates?', 'donde hay remates'], ['Nueva búsqueda', 'empezar de nuevo']]];
   }
@@ -458,7 +544,7 @@
       var l0 = buscar(f);
       if (l0.some(function (r) { return mon(r) === 'US$'; }) && l0.some(function (r) { return mon(r) === 'S/'; })) { say('Para ordenar por precio necesito comparar en la misma moneda. ¿Te los muestro en <b>soles</b> o en <b>dólares</b>?', 400, [['En soles', 'en soles'], ['En dólares', 'en dólares']]); return; }
     }
-    var aviso = 'Voy a revisar si hay <b>' + esc(que(f)) + '</b>' + (f.lug ? ' en <b>' + esc(nombreLugar(f)) + '</b>' : '') + (precioTxt(f) ? ' ' + esc(precioTxt(f)) : '') + ' en mi base de remates…';
+    var aviso = 'Voy a revisar si hay <b>' + esc(que(f)) + '</b>' + (f.lug ? ' en <b>' + esc(nombreLugar(f)) + '</b>' : '') + (precioTxt(f) ? ' ' + esc(precioTxt(f)) : '') + ' ' + (f.src ? 'en los remates de ' + nomFuente(f.src) : 'en los remates del Poder Judicial (REMAJU), de SUNAT y de INDECOPI') + '…';
     revisarYResponder(aviso, function () { return resolver(f, nota); });
   }
   function ficha(n) {
@@ -469,12 +555,12 @@
   }
   function cobertura() {
     var c = {}, lm = 0, ca = 0;
-    D.remates.forEach(function (r) { var g = G[r[0]]; if (g.metro) lm++; else if (g.dep === 'callao') ca++; else if (g.dep) { var k = g.dep === 'lima' ? 'Lima provincias' : DEPS[g.dep][0]; c[k] = (c[k] || 0) + 1; } });
+    D.todos.forEach(function (r) { var g = G[r[0]]; if (g.metro) lm++; else if (g.dep === 'callao') ca++; else if (g.dep) { var k = g.dep === 'lima' ? 'Lima provincias' : DEPS[g.dep][0]; c[k] = (c[k] || 0) + 1; } });
     var t = Object.keys(c).sort(function (a, b) { return c[b] - c[a]; }).map(function (k) { return k + ' (' + c[k] + ')'; }).join(', ');
-    return ['Ahora mismo tengo remates en: <b>Lima Metropolitana (' + lm + ')</b>' + (ca ? ', <b>Callao (' + ca + ')</b>' : '') + ' y en provincias: ' + esc(t) + '.<br><br>Dime un distrito, ciudad o región y te muestro lo que hay; si no hay nada exacto, te enseño lo más cercano.', [['Lima Moderna', 'propiedades en lima moderna'], ['Lima Norte', 'propiedades en lima norte'], ['Lima Este', 'propiedades en lima este'], ['Lima Sur', 'propiedades en lima sur'], ['Norte del Perú', 'propiedades en el norte del peru'], ['Sur del Perú', 'propiedades en el sur del peru'], ['Selva', 'propiedades en la selva']]];
+    return ['Sumando Poder Judicial (' + D.remates.length + '), SUNAT (' + D.sunat.length + ')' + (D.inde.length ? ' e INDECOPI (' + D.inde.length + ')' : '') + ', ahora mismo tengo remates en: <b>Lima Metropolitana (' + lm + ')</b>' + (ca ? ', <b>Callao (' + ca + ')</b>' : '') + ' y en provincias: ' + esc(t) + '.<br><br>Dime un distrito, ciudad o región y te muestro lo que hay; si no hay nada exacto, te enseño lo más cercano.', [['Lima Moderna', 'propiedades en lima moderna'], ['Lima Norte', 'propiedades en lima norte'], ['Lima Este', 'propiedades en lima este'], ['Lima Sur', 'propiedades en lima sur'], ['Norte del Perú', 'propiedades en el norte del peru'], ['Sur del Perú', 'propiedades en el sur del peru'], ['Selva', 'propiedades en la selva']]];
   }
   var FAQ = [
-    [/sunat|indecopi|coactiv|tributari|aduana|otros remates|otras entidades/, function () { return ['Además de los remates del Poder Judicial (REMAJU), en la web hay dos secciones más, que se revisan de lunes a viernes:<br>• <a href="' + BASE + 'sunat/"><b>Remates de SUNAT</b></a>: inmuebles embargados por la SUNAT, con base, tasación, fecha y lugar del remate.<br>• <a href="' + BASE + 'indecopi/"><b>Remates de INDECOPI</b></a>: catálogos de inmuebles; se publican pocos días antes de cada remate.<br><br>Mi búsqueda por ahora cubre los remates judiciales; para SUNAT e INDECOPI entra a su sección y usa el filtro de la página.', [['Buscar remates judiciales', 'empezar de nuevo'], ['Hablar con Víctor', 'asesoria']]]; }],
+    [/coactiv|aduana|otros remates|otras entidades|que entidades|que fuentes|de donde (sacas|salen)/, function () { return ['Reúno los remates de tres entidades y te los muestro por separado:<br>• <b>Poder Judicial (REMAJU)</b>: ' + D.remates.length + ' remates judiciales publicados. <a href="' + BASE + '">Ver</a><br>• <b>SUNAT</b>: ' + D.sunat.length + ' inmuebles embargados por cobranza coactiva. <a href="' + BASE + 'sunat/">Ver</a><br>• <b>INDECOPI</b>: ' + (D.inde.length ? D.inde.length + ' inmuebles en catálogo vigente' : 'sin remate comunicado por ahora (publica el catálogo pocos días antes)') + '. <a href="' + BASE + 'indecopi/">Ver</a><br><br>Dime un lugar o un tipo de inmueble y busco en las tres.', [['Propiedades en Lima', 'propiedades en lima'], ['Remates de SUNAT', 'remates de sunat'], ['Remates de INDECOPI', 'remates de indecopi']]]; }],
     [/servicio|cuanto cuesta|cuanto cobra|precio de|tarifa|honorario|consulta personalizada|informe|expediente|estudio de titulo|revision de (la )?partida|asesor|abogado|cotiz/, function () { return [servicios(), [['Hablar con Víctor', 'asesoria'], ['Buscar remates', 'empezar de nuevo']]]; }],
     [/donde hay|que (distritos|ciudades|regiones|zonas|lugares)|en que (lugares|ciudades|zonas|distritos)|cobertura|de donde tienes/, cobertura],
     [/como funciona|que es (un )?remate|remate judicial|como (se )?participa|como participo|como ofertar|quiero participar|pasos/, function () { return ['Un <b>remate judicial</b> es la venta pública de un bien embargado o hipotecado, ordenada por un juez para cobrar una deuda. En REMAJU (Poder Judicial) cada remate publica una <b>tasación</b>, una <b>base</b> (en estos remates, 2/3 de la tasación), el periodo de <b>inscripción</b> y las fechas de <b>ofertas</b>. Para ofertar normalmente debes inscribirte dentro del plazo y consignar el <b>oblaje</b> (depósito) y el <b>arancel</b>; ambos montos están en la ficha de cada remate y en las bases.<br><br>Antes de ofertar conviene revisar la <b>partida en SUNARP</b> (cargas), la <b>posesión</b> del inmueble y las bases del remate. ¿Te muestro opciones o prefieres que Víctor te oriente?', [['Buscar remates', 'empezar de nuevo'], ['Cargas y SUNARP', 'que son las cargas'], ['Hablar con Víctor', 'asesoria']]]; }],
@@ -501,9 +587,9 @@
   function enviar(txt, etiqueta) { user(etiqueta || txt); load().then(function () { procesar(txt); }); }
   function procesar(txt) {
     var m = limpio(txt), k;
-    if (/^(empezar de nuevo|nueva busqueda|reiniciar|borrar|limpiar)/.test(m)) { F = {}; last = null; say('Listo, empecemos de nuevo. ¿Qué buscas y dónde? Puedes decirme también tu presupuesto.', 350, CH_INICIO); return; }
-    if (/^ver mas/.test(m)) { if (last && shown < last.length) { var r = mostrar(last, shown); say(r[0], 500, r[1]); } else say('No hay más resultados en esta búsqueda.', 300, CH_INICIO); return; }
-    if (/^todo lugar/.test(m) && F.lug) { F = { lug: F.lug }; responderBusqueda(F); return; }
+    if (/^(empezar de nuevo|nueva busqueda|reiniciar|borrar|limpiar)/.test(m)) { F = {}; last = null; LG = null; SH = {}; say('Listo, empecemos de nuevo. ¿Qué buscas y dónde? Puedes decirme también tu presupuesto.', 350, CH_INICIO); return; }
+    if (/^ver mas/.test(m)) { var vk = (m.match(/^ver mas (pj|sunat|indecopi)/) || [])[1], vr = verMas(vk); if (vr) say(vr[0], 500, vr[1]); else say('No hay más resultados en esta búsqueda.', 300, CH_INICIO); return; }
+    if (/^todo lugar/.test(m) && F.lug) { F = { lug: F.lug, src: F.src }; if (!F.src) delete F.src; responderBusqueda(F); return; }
     if (/^abrir alertas/.test(m)) {
       var q = [], pl = F.lug && F.lug[0];
       if (pl && /dist|calld|ciudad|dep/.test(pl.k)) q.push('ub=' + encodeURIComponent(pl.n)); else if (pl && /metro|zona/.test(pl.k)) q.push('ub=Lima');
@@ -515,7 +601,10 @@
     var mw = m.match(/^(asesoria|titulo)\s*(\d{5})?$/);
     if (mw) { say('Te abro WhatsApp con un mensaje ya escrito para Víctor' + (mw[2] ? ' sobre el remate N.° ' + esc(mw[2]) : '') + '. Solo tienes que enviarlo.<br><a target="_blank" rel="noopener" href="' + wasolicitud(mw[2]) + '"><b>Abrir WhatsApp →</b></a><br><small style="color:#5A6470">Atiende Víctor Ventura personalmente; las respuestas de Robotín no constituyen asesoría legal.</small>', 400, [['Seguir buscando', 'empezar de nuevo']]); return; }
     var o = parse(txt);
-    if (o.n && !o.lug && !o.tipo) { ficha(o.n); return; }
+    if (o.n && !o.lug && !o.tipo && o.src !== 'sunat') { ficha(o.n); return; }
+    var mS = m.match(/\b(\d{3,5})\b/);
+    if (o.src === 'sunat' && mS && !o.lug && !o.tipo && o.max == null && o.min == null) { var rs = D.sunat.filter(function (x) { return x[16].n === mS[1]; })[0]; if (rs) { revisarYResponder('Voy a buscar el remate <b>N.° ' + esc(mS[1]) + '</b> de SUNAT…', function () { return ['Esto tengo del remate de <b>SUNAT N.° ' + esc(mS[1]) + '</b>:' + item(rs) + (rs[6] ? '<div style="font-size:13px">Tasación: <b>' + esc(rs[6]) + '</b>' + (rs[10] ? '<br>Partida: ' + esc(rs[10]) : '') + (rs[16].local ? '<br>Lugar del remate: ' + esc(rs[16].local) : '') + (rs[16].obs ? '<br><b>Ojo:</b> ' + esc(rs[16].obs) : '') + '</div>' : '') + PIE, [['Más remates de SUNAT', 'remates de sunat'], ['Nueva búsqueda', 'empezar de nuevo']]]; }); return; } }
+    if (o.todas && !tiene(o)) { delete F.src; responderBusqueda(F); return; }
     var esPregunta = /^(que|como|cuanto|cuando|por que|donde hay|en que|quien)\b/.test(m);
     if (!tiene(o) || (esPregunta && !o.lug && !o.tipo && o.max == null && o.min == null)) {
       for (var i = 0; i < FAQ.length; i++) if (FAQ[i][0].test(m)) { var res = FAQ[i][1](); say(res[0], 500, res[1]); return; }
@@ -528,7 +617,8 @@
     var palabras = m.split(' ').length;
     var sigue = tiene(F) && (/^(y|o|pero|tambien|ademas|ahora|mejor|solo|entonces|ok|mas bien|en cambio)\b/.test(m) || /\b(tambien|ademas|en cambio|mas bien)\b/.test(m) || dados === 0 || (dados === 1 && palabras <= 4 && !/\b(busco|buscando|quiero|necesito|quisiera)\b/.test(m)));
     var nfil = sigue ? clon(F) : {};
-    ['lug', 'tipo', 'mon', 'area', 'sc', 'ord'].forEach(function (x) { if (o[x] != null) nfil[x] = o[x]; });
+    ['lug', 'tipo', 'mon', 'area', 'sc', 'ord', 'src'].forEach(function (x) { if (o[x] != null) nfil[x] = o[x]; });
+    if (o.todas) delete nfil.src;
     if (o.min != null || o.max != null) { delete nfil.min; delete nfil.max; if (o.min != null) nfil.min = o.min; if (o.max != null) nfil.max = o.max; }
     F = nfil;
     var nota = '';
