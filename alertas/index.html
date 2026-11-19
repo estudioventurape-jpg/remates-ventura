@@ -76,7 +76,7 @@ button.go.wa2{background:#25a244;border-color:#25a244;font-size:15px;padding:14p
 <main class="w">
 <div class="lab">Remates judiciales · REMAJU</div>
 <h1>Alertas de remates</h1>
-<div class="sub">Dime qué buscas y te aviso cuando aparezca un remate que encaje</div>
+<div class="sub">Dinos qué buscas y te avisamos por correo cuando aparezca un remate que encaje</div>
 <div class="cta"><a class="btn p" href="/remates/">Remates del día</a><a class="btn" href="/remates/buscar/">Archivo y buscador</a></div>
 
 <h2 class="s"><span>01</span>¿Qué quieres que te avise?</h2>
@@ -102,13 +102,15 @@ button.go.wa2{background:#25a244;border-color:#25a244;font-size:15px;padding:14p
 <h2 class="s"><span>03</span>¿Dónde te avisamos?</h2>
 <div class="fm">
 <label>Nombre<input id="a_nom" type="text" autocomplete="name" placeholder="Tu nombre"></label>
-<label>WhatsApp<input id="a_tel" type="tel" autocomplete="tel" placeholder="9XX XXX XXX"></label>
-<label>Correo (opcional)<input id="a_mail" type="email" autocomplete="email" placeholder="tu@correo.com"></label>
+<label>Correo (aquí te llegan los avisos)<input id="a_mail" type="email" autocomplete="email" placeholder="tu@correo.com"></label>
+<label>WhatsApp (opcional)<input id="a_tel" type="tel" autocomplete="tel" placeholder="9XX XXX XXX"></label>
+<input id="a_web" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 </div>
-<div class="cons"><label><input type="checkbox" id="a_ok"><span>Autorizo a Víctor Ventura – Ventura Legal a tratar mis datos (nombre, WhatsApp, correo y criterios de búsqueda) únicamente para enviarme alertas de remates y contactarme sobre ellas, conforme a la Ley N.° 29733. Puedo pedir en cualquier momento que se corrijan o eliminen escribiendo al 927 995 630 o a victor@venturalegal.pe.</span></label></div>
-<button class="go wa2" id="a_go" type="button" disabled>Enviar mi alerta por WhatsApp</button>
+<div class="cons"><label><input type="checkbox" id="a_ok"><span>Autorizo a Ventura Legal a tratar mis datos (nombre, correo, WhatsApp y criterios de búsqueda) únicamente para enviarme avisos de remates por correo electrónico y, si indiqué mi número, por WhatsApp, y para contactarme sobre ellos, conforme a la Ley N.° 29733. Puedo pedir en cualquier momento que se modifiquen o eliminen respondiendo BAJA a cualquier aviso o escribiendo al 927 995 630 o a victor@venturalegal.pe.</span></label></div>
+<button class="go" id="a_go" type="button" disabled>Activar mi alerta</button>
+<div id="a_fin" class="hide" style="margin-top:14px;background:#E9F7EE;border:1px solid #25a244;padding:16px 18px;font-size:15px"></div>
 <div class="err" id="a_err"></div>
-<p class="note" style="margin-top:12px">Al pulsar, se abre WhatsApp con tu alerta ya escrita para que la envíes. Aún no hay cobro: por ahora las alertas son gratuitas. Si quieres que revisemos el título y las cargas de algún remate, pídelo desde su ficha.</p>
+<p class="note" style="margin-top:12px">Al activarla te enviaremos un correo de confirmación con los remates que ya encajan y, después, un aviso cada vez que se publique uno nuevo que coincida (los avisos salen de lunes a viernes, por la mañana). Por ahora las alertas son gratuitas. Si quieres que revisemos algún remate, pide el servicio desde su ficha.</p>
 
 <div class="av" style="background:#E5EAF6;padding:14px 18px;margin-top:30px;font-size:14px;color:#222"><p style="margin:0">Información referencial tomada de REMAJU en la fecha de cada edición; no constituye asesoría de inversión ni recomendación de compra. Los remates pueden cambiar o suspenderse: verifica siempre la partida actualizada en SUNARP, la posesión y las bases en REMAJU.</p></div>
 </main>
@@ -167,18 +169,24 @@ function match(c){var out=[];
 function pv(){var c=crit(),out=match(c),el=$('a_pv');
  $('a_cnt').textContent=out.length+(out.length===1?' remate publicado coincide con tu alerta':' remates publicados coinciden con tu alerta')+' (desde el 6 de noviembre de 2026)';
  el.innerHTML=out.length?'<ul>'+out.slice(0,8).map(function(r){return'<li><span><b>'+esc(r[0])+'</b> · '+esc(r[1])+' · '+esc(r[2])+'</span><span>'+esc(r[3])+' · <a href="/remates/'+r[4]+'/'+(r[5]?'#r'+r[0]:'')+'">'+esc(fmt(r[4]))+'</a></span></li>'}).join('')+'</ul>':'<p class="note">Aún no hay remates publicados que encajen. Si dejas tu alerta, te avisaremos cuando aparezca uno.</p>'}
-function valid(){var ok=$('a_ok').checked&&$('a_nom').value.trim().length>1&&$('a_tel').value.replace(/\D/g,'').length>=9;$('a_go').disabled=!ok}
+function valid(){var ok=$('a_ok').checked&&$('a_nom').value.trim().length>1&&/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test($('a_mail').value.trim());$('a_go').disabled=!ok}
 ['a_sub','a_mon','a_min','a_max','a_area','a_sc'].forEach(function(i){$(i).addEventListener('input',pv)});
 $('a_zona').addEventListener('input',function(){llenaSub();pv()});
 document.querySelectorAll('#a_tp input').forEach(function(i){i.addEventListener('input',pv)});
-['a_ok','a_nom','a_tel'].forEach(function(i){$(i).addEventListener('input',valid)});
+['a_ok','a_nom','a_mail'].forEach(function(i){$(i).addEventListener('input',valid)});
+function waTxt(c,tel){var L=['Hola Víctor, quiero crear una alerta de remates:','Nombre: '+$('a_nom').value.trim(),'Correo: '+$('a_mail').value.trim()];if(tel)L.push('WhatsApp: '+tel);
+ L.push('Ubicación: '+ubTxt(c),'Tipo: '+(c.tp.length?c.tp.join(', '):'cualquiera'),'Base: '+(c.mon||'S/ o US$')+' '+(isNaN(c.min)?'0':c.min)+' a '+(isNaN(c.max)?'sin límite':c.max),'Área mínima: '+(isNaN(c.area)?'sin mínimo':c.area+' m²'),'Solo sin cargas declaradas: '+(c.sc?'sí':'no'),'Frecuencia: '+c.fr,'Autorizo el uso de mis datos para recibir estos avisos (Ley N.° 29733).');
+ return 'https://wa.me/51927995630?text='+encodeURIComponent(L.join('\n'))}
 $('a_go').addEventListener('click',function(){
- var c=crit(),tel=$('a_tel').value.replace(/\D/g,'');
- if(tel.length<9){$('a_err').textContent='Escribe un número de WhatsApp válido.';return}
- var L=['Hola Víctor, quiero crear una alerta de remates de REMAJU:','Nombre: '+$('a_nom').value.trim(),'WhatsApp: '+tel];
- if($('a_mail').value.trim())L.push('Correo: '+$('a_mail').value.trim());
- L.push('Ubicación: '+ubTxt(c),'Tipo: '+(c.tp.length?c.tp.join(', '):'cualquiera'),'Base: '+(c.mon||'S/ o US$')+' '+(isNaN(c.min)?'0':c.min)+' a '+(isNaN(c.max)?'sin límite':c.max),'Área mínima: '+(isNaN(c.area)?'sin mínimo':c.area+' m²'),'Solo sin cargas declaradas: '+(c.sc?'sí':'no'),'Frecuencia: '+c.fr,'Autorizo el tratamiento de mis datos para recibir estas alertas (Ley 29733).');
- window.open('https://wa.me/51927995630?text='+encodeURIComponent(L.join('\n')),'_blank','noopener');
+ var c=crit(),tel=$('a_tel').value.replace(/\D/g,''),b=$('a_go'),fin=$('a_fin');$('a_err').textContent='';
+ if(tel&&(tel.length!==9||tel.charAt(0)!=='9')){$('a_err').textContent='Revisa el número de WhatsApp (9 dígitos) o déjalo vacío.';return}
+ b.disabled=true;b.textContent='Activando…';
+ var datos={nombre:$('a_nom').value.trim(),email:$('a_mail').value.trim(),tel:tel,zona:c.zona,sub:c.sub,tipos:c.tp,mon:c.mon,min:isNaN(c.min)?null:c.min,max:isNaN(c.max)?null:c.max,area:isNaN(c.area)?null:c.area,sc:c.sc,semanal:/semanal/i.test(c.fr),consentimiento:true,web:$('a_web').value};
+ function listo(ok){b.textContent='Activar mi alerta';fin.classList.remove('hide');
+  if(ok){b.classList.add('hide');fin.innerHTML='<b>¡Listo! Tu alerta quedó registrada.</b><br>Te escribiremos a <b>'+esc(datos.email)+'</b>: primero un correo de confirmación (el siguiente día hábil por la mañana) y luego un aviso cada vez que aparezca un remate que encaje. Revisa también tu carpeta de correo no deseado.<br><br><a class="btn g" style="display:inline-block" target="_blank" rel="noopener" href="'+waTxt(c,tel)+'">Enviar también por WhatsApp</a> <span style="font-size:13px;color:#444C55">(opcional, para que tengamos tu chat a la mano)</span>'}
+  else{b.disabled=false;fin.style.background='#FFF4E5';fin.style.borderColor='#FF9F1C';fin.innerHTML='<b>No pudimos registrar tu alerta en línea en este momento.</b> Envíanosla por WhatsApp y la activamos igual:<br><br><a class="btn g" style="display:inline-block" target="_blank" rel="noopener" href="'+waTxt(c,tel)+'">Enviar mi alerta por WhatsApp</a>'}
+  fin.scrollIntoView({block:'center',behavior:'smooth'})}
+ fetch('/remates/alertas/registrar.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(datos)}).then(function(r){return r.json()}).then(function(j){listo(!!(j&&j.ok))}).catch(function(){listo(false)});
 });
 llenaZona();llenaSub();
 fetch('/remates/remates.json',{cache:'no-cache'}).then(function(r){return r.json()}).then(function(d){D=d;
