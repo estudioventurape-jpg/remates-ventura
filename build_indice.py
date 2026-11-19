@@ -55,8 +55,8 @@ def fab_html():
     # Sin botón flotante de WhatsApp (decisión de Víctor, 19/11/2026): la invitación flotante es «Conversa con Robotín».
     # Si existe GRUPO_URL se muestra solo el enlace al grupo.
     g = f'<div class="fab"><a class="g1" href="{GRUPO_URL}" target="_blank" rel="noopener">Únete al grupo de remates</a></div>' if GRUPO_URL else ''
-    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=6" defer></script><!--/fab-->'
-paginas = ['index.html', os.path.join('buscar', 'index.html'), os.path.join('alertas', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
+    return f'<!--fab-->{FAB_CSS if GRUPO_URL else ""}{g}<script src="/remates/robotin/robotin.js?v=7" defer></script><!--/fab-->'
+paginas = ['index.html', os.path.join('buscar', 'index.html'), os.path.join('alertas', 'index.html'), os.path.join('sunat', 'index.html'), os.path.join('indecopi', 'index.html')] + [os.path.join(e['fecha'], 'index.html') for e in ediciones]
 for p in paginas:
     if not os.path.isfile(p): continue
     s = open(p, encoding='utf-8').read()
@@ -123,3 +123,23 @@ for p in paginas:
     if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
     if '<!--og-->' in s2: n_og += 1
 print('imagen para compartir (Robotín) en', n_og, 'páginas')
+
+# Pestañas de fuentes (Poder Judicial · SUNAT · INDECOPI) bajo la cabecera de todas las páginas (19/11/2026).
+# Los datos de SUNAT e INDECOPI salen de otros/*.json con build_otros.py (ejecutarlo ANTES que este script).
+try: RES = json.load(open(os.path.join('otros', 'resumen.json'), encoding='utf-8'))
+except Exception: RES = {}
+TAB_CSS = '<style>.fts{border-bottom:1px solid #DFE3EA;background:#F2F5FB}.fts .w{display:flex;gap:6px;padding:8px 16px;overflow-x:auto}.fts a{white-space:nowrap;text-decoration:none;color:#20397A;font:600 13.5px Inter,system-ui,sans-serif;padding:8px 14px;border-radius:20px;border:1px solid #C9D3EC;background:#fff}.fts a.on{background:#2A4A9C;color:#fff;border-color:#2A4A9C}.fts a small{font-weight:500;opacity:.8;margin-left:4px}@media print{.fts{display:none}}</style>'
+def tabs(p):
+    sec = 'sunat' if p.startswith('sunat') else 'indecopi' if p.startswith('indecopi') else 'pj'
+    ns = RES.get('sunat', {}).get('n'); ni = RES.get('indecopi', {}).get('n')
+    t = [('pj', '/remates/', 'Poder Judicial (REMAJU)', f'{len(remates)}'), ('sunat', '/remates/sunat/', 'SUNAT', str(ns) if ns is not None else ''), ('indecopi', '/remates/indecopi/', 'INDECOPI', (str(ni) if ni else 'sin remate vigente') if ni is not None else '')]
+    return '<!--fts-->' + TAB_CSS + '<nav class="fts" aria-label="Fuentes de remates"><div class="w">' + ''.join(f'<a href="{u}"{" class=\"on\"" if k == sec else ""}>{n}{"<small>" + c + "</small>" if c else ""}</a>' for k, u, n, c in t) + '</div></nav><!--/fts-->'
+n_t = 0
+for p in paginas:
+    if not os.path.isfile(p): continue
+    s = open(p, encoding='utf-8').read()
+    s2 = re.sub(r'<!--fts-->.*?<!--/fts-->', '', s, flags=re.S)
+    s2 = s2.replace('</header>', '</header>' + tabs(p), 1)
+    if s2 != s: open(p, 'w', encoding='utf-8').write(s2)
+    if '<!--fts-->' in s2: n_t += 1
+print('pestañas de fuentes en', n_t, 'páginas')
