@@ -1,5 +1,5 @@
 {
-"actualizado": "2026-11-20",
+"actualizado": "2026-11-23",
 "fuente": "https://rematestributarios.sunat.gob.pe/por-fecha",
 "remates": [
 {
@@ -183,26 +183,6 @@
 "url": "https://rematestributarios.sunat.gob.pe/node/2433"
 },
 {
-"id": "2434",
-"fecha": "2026-11-23",
-"hora": "11:38",
-"dependencia": "Tacna",
-"region": "Tacna",
-"tipo": "Terreno",
-"titulo": "TERRENO URBANO CONSTRUIDO, MZ. 323 LT. 26 PROMUVI VIÑANI (ASOC. 23 DE JUNIO) 120 M2 - PARTIDA P20059795",
-"base": 115595.0,
-"tasacion": 203990.78,
-"convocatoria": "2.ª",
-"acciones": "",
-"partida": "P20059795",
-"cargas": "Hipoteca, embargo de SUNAT",
-"igv": "no incluye IGV",
-"local": "INTENDENCIA DE TRIBUTOS INTERNOS TACNA (AUDITORIO) CALLE ZELA 701-703 TACNA",
-"sistema": "Postura a viva voz",
-"obs": "",
-"url": "https://rematestributarios.sunat.gob.pe/node/2434"
-},
-{
 "id": "2447",
 "fecha": "2026-11-23",
 "hora": "11:40",
@@ -281,26 +261,6 @@
 "sistema": "Postura a viva voz",
 "obs": "",
 "url": "https://rematestributarios.sunat.gob.pe/node/542"
-},
-{
-"id": "787",
-"fecha": "2026-11-23",
-"hora": "11:48",
-"dependencia": "Tacna",
-"region": "Tacna",
-"tipo": "Inmueble",
-"titulo": "INMUEBLE DE DOS (2) PISOS EN ASOCIACIÓN PRO-VIVIENDA MAGISTERIAL TACNA H-8, TACNA. PARTIDA 05016270. Área 160.00 M2",
-"base": 307961.0,
-"tasacion": 639364.22,
-"convocatoria": "3.ª",
-"acciones": "",
-"partida": "05016270",
-"cargas": "Hipoteca, embargo de SUNAT",
-"igv": "no incluye IGV",
-"local": "INTENDENCIA DE TRIBUTOS INTERNOS TACNA (AUDITORIO) CALLE ZELA 701-703 TACNA",
-"sistema": "Postura a viva voz",
-"obs": "",
-"url": "https://rematestributarios.sunat.gob.pe/node/787"
 },
 {
 "id": "2538",
